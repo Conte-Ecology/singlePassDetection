@@ -1,0 +1,48 @@
+Shenandoah Single vs Multi-pass Sampling
+===========================================
+
+Cleaning before entry into R:
+* Did text to columns by comma to separate coded notes into columns
+* Replaced "MORT" and other non-numeric mortality notes with 7
+* Made a 'dead' column that was comprised of notes 7 (mortality) and 10 (whole fish collected)
+* Replaced `'` and `"` with blank to avoid problems reading in text columns
+* Replaced `ND` (No Data) with `NA` for missing data
+* Changed `Species` to `Code` in the fish data headers to be able to merge with the species data (could do in R after import)
+* Added primary key
+
+```{r setup, results = 'hide', message = FALSE, warning = FALSE}
+rm(list=ls())
+
+library(data.table) # fast, efficient reading in of big data
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+
+setwd('/Users/Dan/Documents/Research/Stream_Climate_Change/Brook_Trout/Compare_Single_Multiple_Pass/')
+
+gameFish <- fread("Data/W_FI_Gamefish.csv", sep = ",")
+
+gameFish[gameFish == 99] <- NA
+
+siteVisits <- fread("Data/R_SiteVisits.csv", sep = ",")
+
+siteVisits[siteVisits == 999] <- NA
+
+species <- fread("Data/W_FI_zdd_FISH_Species.csv", sep = ",", header = TRUE)
+upstream <- fread("Data/shenandoahUpstreamStats.csv", sep = ",")
+
+siteVisits$date <- ymd_hms(siteVisits$sDate, tz = "US/Eastern")
+
+```
+
+
+
+
+
+
+
+
+
+
+
+

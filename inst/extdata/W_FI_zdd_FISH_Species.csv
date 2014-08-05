@@ -1,0 +1,54 @@
+Key,Microfish,Code,COMMONNAME,LATINNAME,FAMILY,FISH_ABBR,GameFish,SppSortCode,PhylogenOrder,FishAbund,TSN
+1,43,ABL,Lamprey  American Brooke,Lampetra appendix,Petromyzonidae,,FALSE,0,,,159708
+2,1,AME,Eel American,Anguilla rostrata,Anguillidae,EEL,FALSE,10,1,C,161127
+3,15,BHC,Chub Bluehead,Nocomis leptocephalus,Cyprinidae,BLHDCHUB,FALSE,20,12,C,163393
+4,10,BKD,Dace Blacknose,Rhinichthys atratulus,Cyprinidae,BLKNSEDACE,FALSE,15,6,A,163382
+5,2,BKT,Trout Brook,Salvelinus fontinalis,Salmonidae,BROOK,TRUE,100,20,A,162003
+6,22,BLG,Bluegill,Lepomis gibbosus,Centrarchidae,BLGILL,TRUE,,30,U,168144
+7,33,BLM,Minnow Bluntnose,Pimephales notatus,Cyprinidae,,FALSE,25,15,U,163516
+8,45,BRB,Bullhead Brown,Ameiurus nebulosus,Ictaluridae,,TRUE,,,,164043
+9,3,BRT,Trout Brown,Salmo trutta,Salmonidae,BROWN,TRUE,101,22,U,161997
+10,,CAP,Carp Common,Cyprinus carpio,Cyprinidae,CARP,FALSE,,2,R,163344
+11,42,CCS,Chubsucker Creek,Erimyzon oblongus,Catostomidae,,FALSE,0,,,163924
+12,6,CES,Stoneroller Central,Campostoma anomalum,Cyprinidae,STONEROLLE,FALSE,11,7,U,163508
+13,16,COS,Shiner Common,Luxilus cornutus,Cyprinidae,COMSHINER,FALSE,21,14,C,163836
+14,12,CRC,Chub Creek,Semotilus atromaculatus,Cyprinidae,CREEKCHUB,FALSE,17,9,A,163376
+15,38,CTT,Trout Cutthroat,Oncorhynchus clarkii,Salmonidae,,TRUE,,,,161983
+16,13,CUM,Minnow Cutlips,Exoglossum maxillingua,Cyprinidae,CUTLIPMINN,FALSE,18,10,U,163356
+17,29,FAD,Darter Fantail,Etheostoma flabellare,Percidae,FANDARTER,FALSE,28,34,C,168394
+18,11,FAF,Fallfish,Semotilus corporalis,Cyprinidae,FALLFISH,FALSE,16,8,U,163375
+19,30,GRD,Darter Greenside,Etheostoma belnnioides,Percidae,,FALSE,29,31,R,168375
+20,0,GSF,Sunfish Green,Lepomis cyanellus,Centrarchidae,,TRUE,,,,168132
+21,27,JOD,Darter Johnny,Etheostoma nigrum,Percidae,JOHNDARTER,FALSE,26,32,R,168369
+22,9,LGD,Dace Longnose,Rhinichthys cataractae,Cyprinidae,LONGNSDACE,FALSE,14,5,A,163384
+23,26,LMB,Bass Largemouth,Micropterus salmoides,Centrarchidae,LGMBASS,TRUE,,28,U,168160
+24,0,LOS,Sunfish Longear,Leponis megalotis,,,TRUE,,,,168153
+25,20,MAM,Madtom Margined,Noturus insignis,Ictaluridae,MARMADTOM,FALSE,25,19,U,164004
+26,8,MRD,Dace Mountain Redbelly,Phoxinus oreas,Cyprinidae,MTREDDACE,FALSE,13,3,U,163595
+27,31,MTS,Sculpin Mottled,Cottus bairdi,Cottidae,MOTTSCULP,FALSE,30,24,A,167237
+28,18,NHS,Hogsucker Northern,Hypentelium nigricans,Catostomidae,HOGSUCKER,FALSE,23,16,U,163949
+29,0,NOFISH,No Fish,No Fish,zNoFish,FISHLESS,FALSE,,,,
+30,0,NOgFISH,No Fish,No Fish,zNoFish,FISHLESS,TRUE,,,,
+31,,NotShockd,Not Shocked,NotShocked,zNot Shocked,Not Shockd,FALSE,,,,
+32,0,PED,Dace Pearl,Margariscus margarita,Cyprinidae,,FALSE,0,,,163873
+33,24,PKS,Pumpkinseed,Lepomis gibbosus,Centrarchidae,PUMPKINSED,TRUE,,30,U,168144
+34,32,POS,Sculpin Potomac,Cottus girardi,Cottidae,SCULPIN,FALSE,31,25,U,167243
+35,4,RBT,Trout Rainbow,Oncorhynchus mykiss,Salmonidae,RAINBOW,TRUE,102,23,U,161991
+36,23,RDB,Sunfish Redbreast,Lepomis auritus,Centrarchidae,REDBSF,TRUE,,29,U,168131
+37,21,ROB,Bass Rock,Ambloplites rupestris,Centrarchidae,ROCKBASS,TRUE,,26,U,168097
+38,14,RRC,Chub River,Nocomis micropogon,Cyprinidae,RIVERCHUB,FALSE,19,11,C,163392
+39,7,RYD,Dace Rosyside,Clinostomus funduloides,Cyprinidae,ROSYSIDACE,FALSE,12,4,A,163371
+40,44,RYS,Shiner Rosyface,Notropis rubellus,Cyprinidae,,FALSE,0,,,163409
+41,,SCU,Sculpin Unknown,Cottus,Cottidae,,FALSE,,,,167229
+42,0,SFS,Shiner Spotfin,Cyprinella spiloptera,Cyprinidae,,FALSE,0,,,163803
+43,25,SMB,Bass Smallmouth,Micropterus dolomieu,Centrarchidae,SMLMTHBASS,TRUE,,27,U,550562
+44,34,SNS,Shiner Satinfin,Cyprinella analostana,Cyprinidae,,FALSE,0,13,R,163766
+45,41,SWS,Swallowtail Shiner,Notropis procne,Cyprinidae,,FALSE,0,,,163407
+46,28,TED,Darter Tesselated,Etheostoma olmstedi,Percidae,TESLDARTR,FALSE,27,33,U,168360
+47,5,TGT,Trout Tiger,Salmo X Salvelinus hybrid,Salmonidae,TIGER,TRUE,103,21,U,992
+48,19,TOS,Sucker Torrent,Thoburnia rhothoeca,Catostomidae,TORRSUCKER,FALSE,24,17,C,553276
+49,,UNK,Unknown Spp > See Notes,Unknown Spp,Unknown,,FALSE,,,,
+50,0,UNSCULP,Sculpin Unknown,Cottus sp.,Cottidae,,FALSE,,,,
+51,,UNSHINR,Shiner Unkown,Notropis sp.,Cyprinidae,SHINER,FALSE,,,,163399
+52,17,WHS,Sucker White,Catastomus commersoni,Catostomidae,WHSUCKER,FALSE,22,18,C,553273
+53,36,YEB,Bullhead Yellow,Ameiurus natalis,Ictaluridae,,TRUE,,,,164041

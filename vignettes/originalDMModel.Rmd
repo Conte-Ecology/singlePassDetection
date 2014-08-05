@@ -1,0 +1,13 @@
+<!--
+%\VignetteEngine{knitr}
+%\VignetteIndexEntry{ISMB Twitter Analysis}
+-->
+
+---
+title: "originalDMModel"
+author: "Yoichiro Kanno"
+date: "August 5, 2014"
+output: html_document
+---
+
+

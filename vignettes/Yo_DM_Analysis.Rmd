@@ -1,0 +1,429 @@
+Shenandoah National Park brook trout data
+72 sites in 1996-2010: not all sites were sampled every year & there is a mix of 1-pass and 3-pass surveys
+========================================================================
+
+## working directory & libraries
+```{r working directory & libraries, warning=FALSE, message=FALSE}
+setwd('/Users/Dan/Documents/Research/Stream_Climate_Change/Brook_Trout/Compare_Single_Multiple_Pass/')
+getwd()
+library(reshape2)
+library(rjags)
+library(plyr)
+library(ggplot2)
+library(knitr)
+library(arm)
+library(boot)
+load.module("glm")
+```
+
+## Read in data
+```{r read in data, results='hide'}
+load("Code/Shen Dail Madsen data and results ver 6.8.RData") 
+```
+
+## Setting up for the model
+```{r setting up, warning=FALSE}
+# Data structure
+nSites = 72; nYears = 15; nAges = 2; nPasses = 3
+
+# Bundle data
+Dat <- list(nSites=nSites, nYears=nYears, nAges=nAges, 
+            y=y, elev=elev, Jdate=Jdate, width=width, 
+            fall.flow=fall.flow, winter.flow=winter.flow, spring.flow=spring.flow,
+            spring.temp=spring.temp)
+
+# INITIAL VALUES
+## Provide first year abundance for S matrix
+SNew <- array(NA, dim=c(nSites,nYears-1,nAges))
+SNew[,1,] <- 100
+
+## Set intial values
+Init <- function() list(S=SNew, alpha=2, beta=0.001,lambda=rep(200,nAges),
+                        gamma.b=rep(0,5), omega.mean=rep(0.5, nAges),
+                        omega.b=array(0, c(5,nAges)),
+                        p.mean=rep(0.5,nAges), p.b=rep(0,2))           
+```
+
+## Runnning the model
+```{r running the model, cache=TRUE}
+# Sequential
+StageBurnin <- jags.model(paste("Code/Three-pass_model.R",sep=""), 
+                          Dat, Init, n.chains=3, n.adapt=10000)     
+
+# coda.samples
+## Parameters to be monitored
+ParsStage <- c("omega.mean","omega.b","gamma.b","lambda",
+               "Ntotal","p.mean","p.b","alpha","beta")
+## run
+Niter=20000
+out1 <- coda.samples(StageBurnin, ParsStage, n.iter=Niter, thin=100)
+summary(out1)
+plot(out1)
+
+# jags.samples
+## Parameters to be monitored
+ParsStage <- c("omega.mean","omega.b","gamma.b","lambda",
+               "Ntotal","p.mean","p.b","alpha","beta","N","p")
+## run
+out2 <- jags.samples(StageBurnin, ParsStage, n.iter=Niter, thin=100)
+str(out2)
+```
+
+## Rhat and DIC
+```{r dic}
+## gelman
+gelman.diag(out1)
+
+## DIC
+chains=as.matrix(StageBurnin)
+dev=chains[,"deviance"]
+dic=mean(dev)+0.5*var(dev)
+
+dic.samples(StageBurnin, n.iter=1000, thin=1, type="pD")
+```
+
+## lambda & sensitivity
+```{r lambda & sensitivity}
+library(popbio)
+# when adult abundance is lower (N = 50 per 100m)
+N=50
+A1 <- matrix(c(0, exp(1.002-0.0075*N), 0.319, 0.453), nrow=2, byrow=TRUE)
+lambda(A1)
+A1
+sensitivity(A1, zero=TRUE)
+elasticity(A1)
+
+# when adult abundance is higher (N = 100 per 100m)
+N=100
+A2 <- matrix(c(0, exp(1.002-0.0075*N), 0.319, 0.453), nrow=2, byrow=TRUE)
+lambda(A2)
+A2
+sensitivity(A2, zero=TRUE)
+elasticity(A2)
+```
+
+
+                         #################################
+                         ## Graphs below: please ignore ##
+                         #################################
+## Checking biplot
+```{r biplot of mcmc parameters}
+biplot <- as.data.frame(cbind(c(out2$omega.mean[1,,1], out2$omega.mean[1,,2], out2$omega.mean[1,,3]),
+                              c(out2$omega.mean[2,,1], out2$omega.mean[2,,2], out2$omega.mean[2,,3]),
+                              c(out2$omega.b[1,1,,1], out2$omega.b[1,1,,2], out2$omega.b[1,1,,3]),
+                              c(out2$omega.b[2,1,,1], out2$omega.b[2,1,,2], out2$omega.b[2,1,,3]),
+                              c(out2$omega.b[3,1,,1], out2$omega.b[3,1,,2], out2$omega.b[3,1,,3]),
+                              c(out2$omega.b[4,1,,1], out2$omega.b[4,1,,2], out2$omega.b[4,1,,3]),
+                              c(out2$omega.b[5,1,,1], out2$omega.b[5,1,,2], out2$omega.b[5,1,,3]),
+                              c(out2$omega.b[1,2,,1], out2$omega.b[1,2,,2], out2$omega.b[1,2,,3]),
+                              c(out2$omega.b[2,2,,1], out2$omega.b[2,2,,2], out2$omega.b[2,2,,3]),
+                              c(out2$omega.b[3,2,,1], out2$omega.b[3,2,,2], out2$omega.b[3,2,,3]),
+                              c(out2$omega.b[4,2,,1], out2$omega.b[4,2,,2], out2$omega.b[4,2,,3]),
+                              c(out2$omega.b[5,2,,1], out2$omega.b[5,2,,2], out2$omega.b[5,2,,3]),
+                              c(out2$alpha[,,1], out2$alpha[,,2], out2$alpha[,,3]),
+                              c(out2$beta[,,1], out2$beta[,,2], out2$beta[,,3]),
+                              c(out2$gamma.b[1,,1], out2$gamma.b[1,,2], out2$gamma.b[1,,3]),
+                              c(out2$gamma.b[2,,1], out2$gamma.b[2,,2], out2$gamma.b[2,,3]),
+                              c(out2$gamma.b[3,,1], out2$gamma.b[3,,2], out2$gamma.b[3,,3]),
+                              c(out2$gamma.b[4,,1], out2$gamma.b[4,,2], out2$gamma.b[4,,3]),
+                              c(out2$gamma.b[5,,1], out2$gamma.b[5,,2], out2$gamma.b[5,,3]),
+                              c(out2$p.mean[1,,1], out2$p.mean[1,,2], out2$p.mean[1,,3]),
+                              c(out2$p.mean[2,,1], out2$p.mean[2,,2], out2$p.mean[2,,3]),
+                              c(out2$p.b[1,,1], out2$p.b[1,,2], out2$p.b[1,,3]), 
+                              c(out2$p.b[2,,1], out2$p.b[2,,2], out2$p.b[2,,3])))
+
+names(biplot) <- c("omega.mean1","omega.mean2",
+                   "omega.b1.1","omega.b2.1","omega.b3.1","omega.b4.1","omega.b5.1",
+                   "omega.b1.2","omega.b2.2","omega.b3.2","omega.b4.2","omega.b5.2",
+                   "alpha","beta","gamma.b1","gamma.b2","gamma.b3","gamma.b4","gamma.b5",
+                   "p.mean1","p.mean2","p.b1","p.b2")
+
+## Pair plot
+# function for pearson correlation (http://www2.warwick.ac.uk/fac/sci/moac/people/students/peter_cock/r/iris_plots/)
+panel.pearson <- function(x, y, ...) {
+  horizontal <- (par("usr")[1] + par("usr")[2]) / 2; 
+  vertical <- (par("usr")[3] + par("usr")[4]) / 2; 
+  text(horizontal, vertical, format(cor(x,y), digits=2)) 
+}
+
+pairs(biplot, main="Pairs plot of mcmc estimates at each iteration", upper.panel=panel.pearson)
+
+## Look at omega terms only
+biplot2 <- as.data.frame(cbind(c(out2$omega.mean[1,,1], out2$omega.mean[1,,2], out2$omega.mean[1,,3]),
+                               c(out2$omega.mean[2,,1], out2$omega.mean[2,,2], out2$omega.mean[2,,3]),
+                               c(out2$omega.b[1,1,,1], out2$omega.b[1,1,,2], out2$omega.b[1,1,,3]),
+                               c(out2$omega.b[2,1,,1], out2$omega.b[2,1,,2], out2$omega.b[2,1,,3]),
+                               c(out2$omega.b[3,1,,1], out2$omega.b[3,1,,2], out2$omega.b[3,1,,3]),
+                               c(out2$omega.b[4,1,,1], out2$omega.b[4,1,,2], out2$omega.b[4,1,,3]),
+                               c(out2$omega.b[5,1,,1], out2$omega.b[5,1,,2], out2$omega.b[5,1,,3]),
+                               c(out2$omega.b[1,2,,1], out2$omega.b[1,2,,2], out2$omega.b[1,2,,3]),
+                               c(out2$omega.b[2,2,,1], out2$omega.b[2,2,,2], out2$omega.b[2,2,,3]),
+                               c(out2$omega.b[3,2,,1], out2$omega.b[3,2,,2], out2$omega.b[3,2,,3]),
+                               c(out2$omega.b[4,2,,1], out2$omega.b[4,2,,2], out2$omega.b[4,2,,3]),
+                               c(out2$omega.b[5,2,,1], out2$omega.b[5,2,,2], out2$omega.b[5,2,,3])))
+
+names(biplot2) <- c("omega.mean1","omega.mean2",
+                    "omega.b1.1","omega.b2.1","omega.b3.1","omega.b4.1","omega.b5.1",
+                    "omega.b1.2","omega.b2.2","omega.b3.2","omega.b4.2","omega.b5.2")
+pairs(biplot2, main="Pairs plot of mcmc estimates at each iteration", upper.panel=panel.pearson)
+```
+
+# check model fit
+```{r check model fit, warning=FALSE}
+N.est <- p.est <- array(NA, dim=c(nSites,nYears,nAges))
+for(i in 1:nSites){
+  for(t in 1:nYears){
+    for(a in 1:nAges){
+      N.est[i,t,a] <- median(out2$N[i,t,a,1:200,1:3])
+      p.est[i,t,a] <- median(out2$p[i,t,a,1:200,1:3])
+    }
+  }
+}
+
+y.est <- array(NA, dim=c(nSites,nYears,nAges,nPasses))
+y.est[,,,1] <- N.est*p.est
+y.est[,,,2] <- N.est*(1-p.est)*p.est
+y.est[,,,3] <- N.est*(1-p.est)*(1-p.est)*p.est
+
+## YOY, 1st pass
+yoy1.obs <- adply(y[,,1,1], c(1,2), mean)
+yoy1.est <- adply(y.est[,,1,1], c(1,2), mean)
+
+yoy1.fit <- cbind(yoy1.obs, yoy1.est$V1)
+names(yoy1.fit) <- c("siteID", "yearID", "yoy1.obs", "yoy1.est")
+
+ggplot(yoy1.fit, aes(x=yoy1.obs, y=yoy1.est)) + geom_point() +
+  geom_abline(intercept = 0, slope = 1, colour = "red", size = 1.1, linetype="dashed") +
+  facet_wrap( ~ yearID, scales="free", ncol=5) +
+  xlab("Observed YOY count in 1st pass") +
+  ylab("Predicted YOY count in 1st pass") +
+  labs(title = "Model fit: YOY 1st pass") +
+  theme(axis.title.y = element_text(size = rel(1.5), angle=90),
+        axis.title.x = element_text(size = rel(1.5)),
+        axis.text = element_text(size = rel(1)),
+        plot.title = element_text(size = rel(1.5), colour="blue"),
+        legend.background = element_rect(colour = "black"),
+        legend.text = element_text(size = 15),
+        legend.title = element_blank())
+
+## YOY, 2nd pass
+yoy2.obs <- adply(y[,,1,2], c(1,2), mean)
+yoy2.est <- adply(y.est[,,1,2], c(1,2), mean)
+
+yoy2.fit <- cbind(yoy2.obs, yoy2.est$V1)
+names(yoy2.fit) <- c("siteID", "yearID", "yoy2.obs", "yoy2.est")
+
+ggplot(yoy2.fit, aes(x=yoy2.obs, y=yoy2.est)) + geom_point() +
+  geom_abline(intercept = 0, slope = 1, colour = "red", size = 1.1, linetype="dashed") +
+  facet_wrap( ~ yearID, scales="free", ncol=5) +
+  xlab("Observed YOY count in 2nd pass") +
+  ylab("Predicted YOY count in 2nd pass") +
+  labs(title = "Model fit: YOY 2nd pass") +
+  theme(axis.title.y = element_text(size = rel(1.5), angle=90),
+        axis.title.x = element_text(size = rel(1.5)),
+        axis.text = element_text(size = rel(1)),
+        plot.title = element_text(size = rel(1.5), colour="blue"),
+        legend.background = element_rect(colour = "black"),
+        legend.text = element_text(size = 15),
+        legend.title = element_blank())
+
+## YOY, 3rd pass
+yoy3.obs <- adply(y[,,1,3], c(1,2), mean)
+yoy3.est <- adply(y.est[,,1,3], c(1,2), mean)
+
+yoy3.fit <- cbind(yoy3.obs, yoy3.est$V1)
+names(yoy3.fit) <- c("siteID", "yearID", "yoy3.obs", "yoy3.est")
+
+ggplot(yoy3.fit, aes(x=yoy3.obs, y=yoy3.est)) + geom_point() +
+  geom_abline(intercept = 0, slope = 1, colour = "red", size = 1.1, linetype="dashed") +
+  facet_wrap( ~ yearID, scales="free", ncol=5) +
+  xlab("Observed YOY count in 3rd pass") +
+  ylab("Predicted YOY count in 3rd pass") +
+  labs(title = "Model fit: YOY 3rd pass") +
+  theme(axis.title.y = element_text(size = rel(1.5), angle=90),
+        axis.title.x = element_text(size = rel(1.5)),
+        axis.text = element_text(size = rel(1)),
+        plot.title = element_text(size = rel(1.5), colour="blue"),
+        legend.background = element_rect(colour = "black"),
+        legend.text = element_text(size = 15),
+        legend.title = element_blank())
+
+## Adult, 1st pass
+adult1.obs <- adply(y[,,2,1], c(1,2), mean)
+adult1.est <- adply(y.est[,,2,1], c(1,2), mean)
+
+adult1.fit <- cbind(adult1.obs, adult1.est$V1)
+names(adult1.fit) <- c("siteID", "yearID", "adult1.obs", "adult1.est")
+
+ggplot(adult1.fit, aes(x=adult1.obs, y=adult1.est)) + geom_point() +
+  geom_abline(intercept = 0, slope = 1, colour = "red", size = 1.1, linetype="dashed") +
+  facet_wrap( ~ yearID, scales="free", ncol=5) +
+  xlab("Observed adult count in 1st pass") +
+  ylab("Predicted adult count in 1st pass") +
+  labs(title = "Model fit: adult 1st pass") +
+  theme(axis.title.y = element_text(size = rel(1.5), angle=90),
+        axis.title.x = element_text(size = rel(1.5)),
+        axis.text = element_text(size = rel(1)),
+        plot.title = element_text(size = rel(1.5), colour="blue"),
+        legend.background = element_rect(colour = "black"),
+        legend.text = element_text(size = 15),
+        legend.title = element_blank())  
+
+## Adult, 2nd pass
+adult2.obs <- adply(y[,,2,2], c(1,2), mean)
+adult2.est <- adply(y.est[,,2,2], c(1,2), mean)
+
+adult2.fit <- cbind(adult2.obs, adult2.est$V1)
+names(adult2.fit) <- c("siteID", "yearID", "adult2.obs", "adult2.est")
+
+ggplot(adult2.fit, aes(x=adult2.obs, y=adult2.est)) + geom_point() +
+  geom_abline(intercept = 0, slope = 1, colour = "red", size = 1.1, linetype="dashed") +
+  facet_wrap( ~ yearID, scales="free", ncol=5) +
+  xlab("Observed adult count in 2nd pass") +
+  ylab("Predicted adult count in 2nd pass") +
+  labs(title = "Model fit: adult 2nd pass") +
+  theme(axis.title.y = element_text(size = rel(1.5), angle=90),
+        axis.title.x = element_text(size = rel(1.5)),
+        axis.text = element_text(size = rel(1)),
+        plot.title = element_text(size = rel(1.5), colour="blue"),
+        legend.background = element_rect(colour = "black"),
+        legend.text = element_text(size = 15),
+        legend.title = element_blank())  
+
+## Adult, 3rd pass
+adult3.obs <- adply(y[,,2,3], c(1,2), mean)
+adult3.est <- adply(y.est[,,2,3], c(1,2), mean)
+
+adult3.fit <- cbind(adult3.obs, adult3.est$V1)
+names(adult3.fit) <- c("siteID", "yearID", "adult3.obs", "adult3.est")
+
+ggplot(adult3.fit, aes(x=adult3.obs, y=adult3.est)) + geom_point() +
+  geom_abline(intercept = 0, slope = 1, colour = "red", size = 1.1, linetype="dashed") +
+  facet_wrap( ~ yearID, scales="free", ncol=5) +
+  xlab("Observed adult count in 3rd pass") +
+  ylab("Predicted adult count in 3rd pass") +
+  labs(title = "Model fit: adult 3rd pass") +
+  theme(axis.title.y = element_text(size = rel(1.5), angle=90),
+        axis.title.x = element_text(size = rel(1.5)),
+        axis.text = element_text(size = rel(1)),
+        plot.title = element_text(size = rel(1.5), colour="blue"),
+        legend.background = element_rect(colour = "black"),
+        legend.text = element_text(size = 15),
+        legend.title = element_blank())
+
+```
+
+# Now onto ecology
+## total trout abundance over 15 years
+```{r total abundance}
+yearTotalAbundMean <- adply(out2$Ntotal, c(1,2), mean)
+yearTotalAbundCI <- adply(out2$Ntotal, c(1,2), quantile, probs=c(.025, .975))
+year2 <- rep(1996:2010, 2)
+size2 <- rep(c("YOY","adult"), each=15)
+
+yearTotalAbund <- cbind(yearTotalAbundMean, yearTotalAbundCI[,3:4], year2, size2)
+names(yearTotalAbund) <- c("year","size","total.mean","total.lower","total.upper","year2","size2")
+yearTotalAbund$year2 <- as.numeric(as.character(yearTotalAbund$year2))
+
+ggplot(yearTotalAbund, aes(x=year2, y=total.mean, colour=size2)) +
+  geom_errorbar(aes(ymin=total.lower, ymax=total.upper), width=0.5, size=1.2) +
+  geom_line(size=1.2) +
+  geom_point(size=1.2) +
+  xlab("Year") +
+  ylab("Estimated total abundance") +
+  labs(title = "Yearly total abundance (with 95 % CI) over 72 sites in Shenandoah") +
+  theme(axis.title.y = element_text(size = rel(1.5), angle=90),
+        axis.title.x = element_text(size = rel(1.5)),
+        axis.text = element_text(size = rel(1.2)),
+        plot.title = element_text(size = rel(1.5), colour="blue"),
+        legend.background = element_rect(colour = "black"),
+        legend.text = element_text(size = 15),
+        legend.title = element_blank())
+```
+
+## total trout abundance over 15 years for Ben's poster
+```{r total abundance}
+yearTotalAbundMean <- adply(out2$Ntotal, c(1,2), mean)
+yearTotalAbundCI <- adply(out2$Ntotal, c(1,2), quantile, probs=c(.025, .975))
+year2 <- rep(1996:2010, 2)
+size2 <- rep(c("YOY","adult"), each=15)
+
+yearTotalAbund <- cbind(yearTotalAbundMean, yearTotalAbundCI[,3:4], year2, size2)
+names(yearTotalAbund) <- c("year","size","total.mean","total.lower","total.upper","year2","size2")
+yearTotalAbund$year2 <- as.numeric(as.character(yearTotalAbund$year2))
+
+ggTot <- ggplot(yearTotalAbund, aes(x=year2, y=total.mean, colour=size2)) +
+  geom_errorbar(aes(ymin=total.lower, ymax=total.upper), width=0.5, size=1.2) +
+  geom_line(size=1.2) +
+  geom_point(size=1.2) +
+  scale_colour_manual(values = c("#003300","brown")) +
+  xlab("Year") +
+  ylab("Estimated total abundance") +
+  #labs(title = "Yearly total abundance (with 95 % CI) over 72 sites in Shenandoah") +
+  theme_bw() +
+  theme(panel.border=element_rect(colour='black'),
+        panel.background=element_rect(fill='#FDF5B7', colour='black'),
+        panel.grid.major=element_line(colour=NA),
+        panel.grid.minor=element_line(colour=NA),
+        plot.background=element_rect(fill="#FDF5B7"),
+        axis.title.y = element_text(size = rel(1.8), angle=90),
+        axis.title.x = element_text(size = rel(1.8)),
+        axis.text = element_text(size = rel(1.5)),
+        plot.title = element_text(size = rel(1.8), colour="black", face="bold"),
+        legend.position="none")
+        #legend.background = element_rect(colour = "black"),
+        #legend.text = element_text(size = 15),
+        #legend.title = element_blank())
+ggTot
+
+dpiIn <- 600
+ggsave( file=paste(getwd(),'/ShenTotalBen.png',sep=''), plot=ggTot, dpi=dpiIn , width=8, height=5, units='in',scale=2 )
+```
+
+## adult vs. yoy time lag 
+```{r time lag}
+## make df
+lag.df <- adply(out2$Ntotal, c(1,2), mean)
+names(lag.df) <- c("year","age","totalN")
+lag.df.wide <- dcast(lag.df, year ~ age, value.var="totalN")
+names(lag.df.wide) <- c("year","yoyTotal","adultTotal")
+
+## adult at year t vs. yoy at year t+1
+lag.df.wide2 <- as.data.frame(cbind(lag.df.wide$adultTotal[1:(nYears-1)], 
+                                    lag.df.wide$yoyTotal[2:nYears]))
+
+library(splines);library(MASS)
+ggplot(lag.df.wide2, aes(x=V1,y=V2)) + geom_point(size=4) + 
+  stat_smooth(method="lm", formula= y ~ ns(x,2), se=FALSE, size=1.2, linetype="dashed") +
+  xlab("Total adult abundance at year t") +
+  ylab("Total YOY abundance at year t+1") +
+  labs(title = "Based on analysis of 72 sites in 1996-2010 in Shenandoah") +
+  theme_bw() +
+  theme(axis.title.y = element_text(size = rel(1.5), angle=90),
+        axis.title.x = element_text(size = rel(1.5)),
+        axis.text = element_text(size = rel(1.2)),
+        plot.title = element_text(size = rel(1.5), colour="blue"),
+        panel.border=element_rect(colour='black'),
+        panel.background=element_rect(fill='white', colour='black'),
+        panel.grid.major=element_line(colour=NA),
+        panel.grid.minor=element_line(colour=NA))
+
+## yoy at year t vs. adult at year t+1
+lag.df.wide3 <- as.data.frame(cbind(lag.df.wide$yoyTotal[1:(nYears-1)], 
+                                    lag.df.wide$adultTotal[2:nYears]))
+
+ggplot(lag.df.wide3, aes(x=V1,y=V2)) + geom_point(size=4) + 
+  stat_smooth(method="lm", se=FALSE, size=1.2, linetype="dashed") +
+  xlab("Total YOY abundance at year t") +
+  ylab("Total adult abundance at year t+1") +
+  labs(title = "Based on analysis of 72 sites in 1996-2010 in Shenandoah") +
+  theme_bw() +
+  theme(axis.title.y = element_text(size = rel(1.5), angle=90),
+        axis.title.x = element_text(size = rel(1.5)),
+        axis.text = element_text(size = rel(1.2)),
+        plot.title = element_text(size = rel(1.5), colour="blue"),
+        panel.border=element_rect(colour='black'),
+        panel.background=element_rect(fill='white', colour='black'),
+        panel.grid.major=element_line(colour=NA),
+        panel.grid.minor=element_line(colour=NA))  
+```

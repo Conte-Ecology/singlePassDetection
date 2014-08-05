@@ -1,0 +1,175 @@
+
+## Examples 
+
+```{r}
+data(oven)
+ovenc <- oven
+ovenc[, c(4:8,10:11)][] <- lapply(ovenc[, c(4:8,10:11)], scale)
+moven <- svabu(count ~ pforest | observ + pforest + julian + timeday, ovenc)
+summary(moven)
+drop1(moven, model="det")
+moven2 <- update(moven, . ~ . | . - timeday)
+summary(moven2)
+
+
+data(databu)
+## fit BZIP and BP models
+m00 <- svabu(Y ~ x1 + x5 | x2 + x5, databu[1:200,])
+## print method
+m00
+## summary: CMLE
+summary(m00)
+## coef
+coef(m00)
+coef(m00, model="sta") ## state (abundance)
+coef(m00, model="det") ## detection
+coef(m00, model="zif") ## zero inflation (this is part of the
+'
+true state
+'
+!)
+## Not run:
+## Diagnostics and model comparison
+m01 <- svabu(Y ~ x1 + x5 | x2 + x5, databu[1:200,], zeroinfl=FALSE)
+## compare estimates (note, zero inflation is on the logit scale!)
+cbind(truth=c(2,-0.8,0.5, 1,2,-0.5, plogis(0.3)),
+"B-ZIP"=coef(m00), "B-P"=c(coef(m01), NA))
+## fitted
+plot(fitted(m00), fitted(m01))
+abline(0,1)
+## compare models
+AIC(m00, m01)
+BIC(m00, m01)
+logLik(m00)
+logLik(m01)
+## diagnostic plot
+plot(m00)
+plot(m01)
+
+# Nonparametric bootstrapping
+# - initial values are the estimates
+m02 <- bootstrap(m00, B=25)
+attr(m02, "bootstrap")
+extractBOOT(m02)
+summary(m02)
+summary(m02, type="cmle")
+summary(m02, type="boot")
+## vcov
+vcov(m02, type="cmle")
+vcov(m02, type="boot")
+vcov(m02, model="sta")
+vcov(m02, model="det")
+## confint
+confint(m02, type="cmle") ## Wald-type
+confint(m02, type="boot") ## quantile based
+## parametric bootstrap
+simulate(m00, 5)
+m03 <- bootstrap(m00, B=5, type="param")
+extractBOOT(m03)
+summary(m03)
+## Model selection
+m04 <- svabu(Y ~ x1 + x5 | x2 + x5 + x3, databu[1:200,], phi.boot=0)
+m05 <- drop1(m04, model="det")
+m05
+m06 <- svabu.step(m04, model="det")
+summary(m06)
+m07 <- update(m04, . ~ . | . - x3)
+m07
+## Controls
+m00$control
+getOption("detect.optim.control")
+getOption("detect.optim.method")
+options("detect.optim.method"="BFGS")
+m08 <- svabu(Y ~ x1 + x5 | x2 + x5, databu[1:100,])
+m08$control ## but original optim method is retained during model selection and bootstrap
+## fitted models can be used to provide initial values
+options("detect.optim.method"="Nelder-Mead")
+m09 <- svabu(Y ~ x1 + x5 | x2 + x5, databu[1:100,], inits=coef(m08))
+## Ovenbirds dataset
+data(oven)
+ovenc <- oven
+ovenc[, c(4:8,10:11)][] <- lapply(ovenc[, c(4:8,10:11)], scale)
+moven <- svabu(count ~ pforest | observ + pforest + julian + timeday, ovenc)
+summary(moven)
+drop1(moven, model="det")
+moven2 <- update(moven, . ~ . | . - timeday)
+summary(moven2)
+
+
+```
+
+
+
+
+From: http://dcr.r-forge.r-project.org/qpad/QPAD_SupportingInfo.pdf
+4.3.2 Bayesian and frequentist approach to hierarchical modeling
+In the next example we consider a Poisson-Log-Normal generalized linear mixed model with a random intercept for routes, which also incorporates detectability related uncertainty. This model uses a global maximization technique called data cloning (Lele et al., 2007, 2010), which takes advantage of Bayesian MCMC techniques for maximum likelihood estimation. The software implementation is described in Solymos (2010). 
+
+### *Note that using a single clone is identical to the Bayesian hierarchical modeling.*
+
+Example GLMM with data cloning
+
+```{r}
+library(dcmle) # load dcmle package (loads detect as well)
+load_BAM_QPAD(version = 1)
+
+load.module("glm") # load glm module for JAGS
+
+model <- function() {
+  for(i in 1:n) {
+    Y[i] ~ dpois(lam[i])
+    log(lam[i]) <- inprod(X[i, ], beta) + E[gr[i]] + log(A[i] * p[i])
+    p[i] <- 1 - exp(-3 * phi[i])
+    A[i] <- 3.141593 * tau[i] ^ 2
+    log(phi[i]) <- inprod(Z1[i, ], theta01)
+    log(tau[i]) <- inprod(Z2[i, ], theta02)
+    }
+  for(j in 1:m) {
+    E[j] ~ dnorm(0, 1 / exp(log.sigma) ^ 2)
+    }
+  for(k in 1:np) {
+    beta[k] ~ dnorm(pr[k], 1)
+    }
+  log.sigma ~ dnorm(-2, 0.01)
+  theta01 ~ dmnorm(theta1, Sigma1)
+  theta02 ~ dmnorm(theta2, Sigma2)
+  }
+
+bc0 <- with(oven, globalBAMcorrections("OVEN", t = dur, r = dist))
+summary(bc0)
+
+bm <- bestmodelBAMspecies("OVEN", type = "BIC")
+bc <- with(oven, localBAMcorrections("OVEN", t = dur, r = dist,
+    jday = JDAY, tssr = TSSR, tree = pforest, lcc = LCC, model.sra = bm$sra,
+    model.edr = bm$edr))
+summary(bc)
+
+
+dat <- list(Y = oven$count, 
+            X = model.matrix( ~ pforest + long, oven), 
+            np = 3, 
+            n = nrow(oven), # every record
+            m = length(unique(oven$route)), # site
+            gr = dciid(as.integer(as.factor(oven$route))), 
+            pr = coef(mod), 
+            theta1 = coefBAMspecies("OVEN", bm$sra, bm$edr)$sra, 
+            Z1 = model.matrix( ~ JDAY, oven), 
+            Sigma1 = solve(vcovBAMspecies("OVEN", bm$sra, bm$edr)$sra), 
+            theta2 = coefBAMspecies("OVEN", bm$sra, bm$edr)$edr, 
+            Z2 = model.matrix( ~ LCC, oven), 
+            Sigma2 = solve(vcovBAMspecies("OVEN", bm$sra, bm$edr)$edr))
+
+dcf <- makeDcFit(model = model, data = dat, params = c("beta", "log.sigma"), multiply = c("n", "m"), unchanged = c("np", "pr", "theta1", "theta2", "Sigma1", "Sigma2"))
+
+cl <- makePSOCKcluster(3) # parallel computing for speed up
+K <- c(1, 2) # sequence for the number of clones to use
+parLoadModule(cl, "glm") # load glm module for JAGS on workers
+
+dcm <- dcmle(dcf, n.clones = K, n.update = 2000, n.iter = 2000, cl = cl, partype = "parchains")
+
+stopCluster(cl) # close cluster
+summary(dcm)
+```
+
+
+

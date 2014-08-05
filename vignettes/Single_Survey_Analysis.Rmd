@@ -1,0 +1,151 @@
+Single-Survey Analysis
+========================================================
+
+```{r load packages and RData}
+rm(list=ls())
+
+library(reshape)
+library(dplyr)
+library(rjags)
+library(parallel)
+library(detect)
+library(ggplot2)
+```
+
+## Read in data
+```{r read in data, results='hide'}
+load("Data/Shen Dail Madsen data and results ver 6.8.RData") 
+```
+
+```{r results = 'hide'}
+yoy.1 <- data.frame(Dat$y[1:72, 2:15, 1, 1]) # all sites, all years, yoy, pass 1
+adult.1 <- data.frame(Dat$y[1:72, 2:15, 2, 1]) # all sites, all years, adult, pass 1
+Jdate <- data.frame(Dat$Jdate[1:72, 2:15])
+width <- data.frame(Dat$width[1:72, 2:15])
+
+yoy.1$site <- row.names(yoy.1)
+colnames(yoy.1) <- c(1997:2010, "site")
+yoy <- melt(yoy.1, id = "site")
+colnames(yoy) <- c("site", "year", "c.yoy")
+
+adult.1$site <- row.names(adult.1)
+colnames(adult.1) <- c(1997:2010, "site")
+adult <- melt(adult.1, id = "site")
+colnames(adult) <- c("site", "year", "c.adults")
+
+Jdate$site <- row.names(Jdate)
+colnames(Jdate) <- c(1997:2010, "site")
+date <- melt(Jdate, id = "site")
+colnames(date) <- c("site", "year", "day")
+
+width$site <- row.names(width)
+colnames(width) <- c(1997:2010, "site")
+width <- melt(width, id = "site")
+colnames(width) <- c("site", "year", "width")
+
+
+pass1 <- data.frame(adult, yoy[ , "c.yoy"], date[ , "day"], width[ , "width"])
+colnames(pass1) <- c("site", "year", "c.adults", "c.yoy", "day", "width")
+
+pass1$elev <- Dat$elev
+
+# flow and temp assumed to be equal across all sites but varied by year
+pass1$fall.flow <- rep(Dat$fall.flow, times = 1, each=72)
+pass1$winter.flow <- rep(Dat$winter.flow , times = 1, each=72)
+pass1$spring.flow <- rep(Dat$spring.flow, times = 1, each=72)
+pass1$spring.temp <- rep(Dat$spring.temp, times = 1, each=72)
+
+head(pass1)
+str(pass1)
+summary(pass1)
+
+pass1$site <- as.factor(pass1$site)
+pass1$fyear <- pass1$year
+pass1$year <- as.integer(pass1$year)
+
+str(pass1)
+```
+
+### GLM
+
+```{r glm}
+
+adult.glm.1 <- glm(c.adults ~ fall.flow + winter.flow + spring.flow + spring.temp + elev + year + day + width, data = pass1, family = "poisson")
+
+summary(adult.glm.1)
+```
+
+```{r glmm}
+
+library(lme4)
+
+adult.glmm.1 <- glmer(c.adults ~ fall.flow + winter.flow + spring.flow + spring.temp + elev + year + day + width + (1|site), data = pass1, family = "poisson")
+
+summary(adult.glmm.1)
+```
+
+Quick models of abundance using the `detect` package. Modelled all site-visits as independent so technically pseudoreplicated. The problem is there is no way to have random effects of site or year. Unfortunately, there is insufficient data from Yoichiro's Dail-Madsen model to independently model each year separately in `detect`. Also, the flows and temperatures are assumed to be equal across all sites in a given year, so I can't have year as a factor in the model while retaining flow or temperature because they are colinear.
+
+```{r detect}
+adult.detect.1 <- svabu(c.adults ~ fall.flow + winter.flow + spring.flow + spring.temp + elev + year | day + width, data = pass1, zeroinfl = TRUE)
+summary(adult.detect.1)
+
+adult.detect.2 <- svabu(c.adults ~ fall.flow + winter.flow + spring.flow + spring.temp + elev + fyear | day + width, data = pass1)
+summary(adult.detect.2) # doesn't work
+
+adult.detect.3 <- svabu(c.adults ~ fall.flow + winter.flow + spring.flow + spring.temp + elev + year | day + width, data = pass1, zeroinfl = FALSE)
+summary(adult.detect.3)
+
+adult.detect.4 <- svabu(c.adults ~ elev + fyear | day + width, data = pass1, zeroinfl = TRUE)
+summary(adult.detect.4)
+
+AIC(adult.detect.1, adult.detect.3, adult.detect.4) # better to just have year effects than specific covariates. There are other things going on besides mean seaonal flow and temp that affect abundance that vary across the whole park annually. Ideally there would be random year and site effects with covariates. Also problem that flow and temperature are identical across all sites.
+ 
+yoy.detect.1 <- svabu(c.yoy ~ fall.flow + winter.flow + spring.flow + spring.temp + elev + year | day + width, data = pass1, zeroinfl = TRUE)
+summary(yoy.detect.1)
+exp(predict(yoy.detect.1))
+mean(exp(predict(yoy.detect.1))) # remarkably similar to Yoichiro's estimates
+
+```
+
+```{r summaries}
+library(dplyr)
+adult.n <- as.data.frame(exp(predict(adult.detect.1))) # missing predictions due to NA in data?
+colnames(adult.n) <- c("N")
+adult.n$trip <- paste("trip", row.names(adult.n), sep = "")
+pass1$trip <- paste("trip", row.names(pass1), sep = "")
+
+adult.n <- left_join(x = pass1, y = adult.n, by = "trip")
+str(adult.n)
+
+# adult.n <- as.data.frame(exp(predict(adult.detect.1)), pass1)
+adult.n$year <- adult.n$year + 1996
+
+g <- group_by(adult.n, year)
+summarise(g, mean = mean(N, na.rm = TRUE)) # not sure why this isn't grouping by year
+
+agg.adult <- aggregate(adult.n, by = list(adult.n$year), FUN = mean, na.rm = TRUE)
+
+agg.adult$N.pop <- agg.adult$N * 72
+
+
+yoy.n <- as.data.frame(exp(predict(yoy.detect.1))) # missing predictions due to NA in data
+colnames(yoy.n) <- c("N")
+yoy.n$trip <- paste("trip", row.names(yoy.n), sep = "")
+pass1$trip <- paste("trip", row.names(pass1), sep = "")
+
+yoy.n <- left_join(x = pass1, y = yoy.n, by = "trip")
+str(yoy.n)
+
+# yoy.n <- as.data.frame(exp(predict(yoy.detect.1)), pass1)
+yoy.n$year <- yoy.n$year + 1996
+
+g <- group_by(yoy.n, year)
+summarise(g, mean = mean(N, na.rm = TRUE)) # not sure why this isn't grouping by year
+
+agg.yoy <- aggregate(yoy.n, by = list(yoy.n$year), FUN = mean, na.rm = TRUE)
+
+agg.yoy$N.pop <- agg.yoy$N * 72
+```
+
+

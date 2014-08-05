@@ -1,0 +1,77 @@
+Shenandoah National Park brook trout data
+72 sites in 1996-2010: not all sites were sampled every year & there is a mix of 1-pass and 3-pass surveys
+========================================================================
+
+## working directory & libraries
+```{r working directory & libraries, warning=FALSE, message=FALSE}
+rm(list=ls())
+
+setwd('/Users/Dan/Documents/Research/Stream_Climate_Change/Brook_Trout/Compare_Single_Multiple_Pass/')
+getwd()
+library(reshape2)
+library(rjags)
+library(plyr)
+library(ggplot2)
+library(knitr)
+library(arm)
+library(boot)
+```
+
+## Read in data
+```{r read in data, results='hide'}
+load("Data/Shen Dail Madsen data and results ver 6.8.RData") 
+```
+
+Compare to 3-pass DM model by Yoichiro
+
+```{r}
+adult.dm <- filter(yearTotalAbund, filter = size2 == "adult")
+adult.dm <- filter(adult.dm, filter = year2 != 1996)
+
+colnames(adult.dm) <- c("year.num", "size", "N.pop", "total.lower", "total.upper", "year", "size2")
+adult.dm$method <- "Dail-Madsen"
+agg.adult$method <- "Single-Pass"
+adult.compare <- rbind(adult.dm[, c("year", "N.pop", "method")], agg.adult[ , c("year", "N.pop", "method")])
+
+
+ggplot(adult.compare, aes(x=year, y=N.pop, colour=method)) +
+  #geom_errorbar(aes(ymin=total.lower, ymax=total.upper), width=0.5, size=1.2) +
+  geom_line(size = 1.2) +
+  geom_point(size = 3) +
+  xlab("Year") +
+  ylab("Estimated total adult abundance") +
+  labs(title = "Yearly adult abundance over 72 sites in Shenandoah") +
+  #theme(legend.position = c(2008, 6000))
+  theme_bw()
+
+
+yoy.dm <- filter(yearTotalAbund, filter = size2 == "YOY")
+yoy.dm <- filter(yoy.dm, filter = year2 != 1996)
+
+colnames(yoy.dm) <- c("year.num", "size", "N.pop", "total.lower", "total.upper", "year", "size2")
+yoy.dm$method <- "Dail-Madsen"
+agg.yoy$method <- "Single-Pass"
+yoy.compare <- rbind(yoy.dm[, c("year", "N.pop", "method")], agg.yoy[ , c("year", "N.pop", "method")])
+
+
+ggplot(yoy.compare, aes(x=year, y=N.pop, colour=method)) +
+  #geom_errorbar(aes(ymin=total.lower, ymax=total.upper), width=0.5, size=1.2) +
+  geom_line(size = 1.2) +
+  geom_point(size = 3) +
+  xlab("Year") +
+  ylab("Estimated total YOY abundance") +
+  labs(title = "Yearly YOY abundance over 72 sites in Shenandoah") +
+  #theme(legend.position = c(2008, 6000))
+  theme_bw()
+
+
+adult.detect.1$detection.probabilities
+
+cor(adult.dm$N.pop, agg.adult$N.pop)
+cor(yoy.dm$N.pop, agg.yoy$N.pop)
+
+summary(lm(adult.dm$N.pop ~ agg.adult$N.pop))
+summary(lm(yoy.dm$N.pop ~ agg.yoy$N.pop))
+
+```
+
