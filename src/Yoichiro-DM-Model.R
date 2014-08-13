@@ -1,0 +1,104 @@
+model{
+  
+  #### Survival
+  for(t in 1:(nYears-1)){
+    for(i in 1:nSites){  
+      for(a in 1:nAges){
+        omega[i,t,a] <- 1/(1 + exp(-lomega.lim[i,t,a]))
+        lomega.lim[i,t,a] <- min(999, max(-999, lomega[i,t,a]))
+        lomega[i,t,a] <- omega.mu[a] + omega.b[1,a]*fall.flow[t] + omega.b[2,a]*winter.flow[t] + 
+          omega.b[3,a]*spring.flow[t] + omega.b[4,a]*spring.temp[t] + omega.b[5,a]*elev[i]   
+      }
+    }
+  }
+  
+  #### Survival Priors
+  for(a in 1:nAges){
+    omega.mean[a] ~ dunif(0.1,0.9)
+    omega.mu[a] <- log(omega.mean[a]/(1-omega.mean[a]))
+    for(j in 1:5){
+      omega.b[j,a] ~ dnorm(0,0.37)  # Jefferey's priors: vague on logit scale
+    }
+  }
+  
+  
+  #### Per capita recruitment
+  for(t in 1:(nYears-1)){
+    for(i in 1:nSites){
+      # Ricker stock-recruitment & environmental covariates (p. 174 Guy & Brown)
+      log(gamma[i,t]) <- alpha - beta*N[i,t,2] +   # Ricker curve
+        gamma.b[1]*fall.flow[t] + gamma.b[2]*winter.flow[t] +  # env covariates 
+        gamma.b[3]*spring.flow[t] + gamma.b[4]*spring.temp[t] + gamma.b[5]*elev[i] 
+    }
+  }
+  
+  #### Recruitment Priors
+  for(j in 1:5){
+    gamma.b[j] ~ dnorm(0, 0.01)  
+  }
+  
+  #### Ricker stock-recruitment priors
+  alpha ~ dunif(0,5)
+  beta ~ dnorm(0, 0.1)#T(0,)
+  
+  #### Initial abundance priors
+  for(a in 1:nAges){
+    lambda[a] ~ dunif(0,500)
+  }
+  
+  
+  ##### N section
+  for(i in 1:nSites){
+    for(a in 1:nAges){
+      # Year 1 - initial abundance
+      N[i,1,a] ~ dpois(lambda[a])             
+    }
+  }
+  
+  # Year 2+ 
+  for(i in 1:nSites){
+    for(t in 2:nYears) {
+      #Estimate recruitment
+      N[i,t,1] ~ dpois(gamma[i,t-1]*N[i,t-1,2])
+      
+      #Estimate survival
+      S[i,t-1,1] ~ dbin(omega[i,t-1,1], N[i,t-1,1])
+      S[i,t-1,2] ~ dbin(omega[i,t-1,2], N[i,t-1,2])
+      N[i,t,2] <- S[i,t-1,1] + S[i,t-1,2]
+    }
+  }
+  
+  
+  #### Detection
+  for(i in 1:nSites) {
+    for(t in 1:nYears){
+      for(a in 1:nAges){
+        y[i,t,a,1] ~ dbin(p[i,t,a], N[i,t,a])
+        y[i,t,a,2] ~ dbin(p[i,t,a], (N[i,t,a]-y[i,t,a,1]))
+        y[i,t,a,3] ~ dbin(p[i,t,a], (N[i,t,a]-y[i,t,a,1]-y[i,t,a,2]))  
+        
+        p[i,t,a] <- 1/(1 + exp(-lp.lim[i,t,a]))
+        lp.lim[i,t,a] <- min(999, max(-999, lp[i,t,a]))
+        lp[i,t,a] <- p.mu[a] + p.b[1]*Jdate[i,t] + p.b[2]*width[i,t]
+      }
+    }  
+  }
+  
+  #### Detection priors
+  for(a in 1:nAges){
+    p.mean[a] ~ dunif(0.1,0.9)    # need to bound: otherwise stuck at values very close to 0
+    p.mu[a] <- log(p.mean[a]/(1-p.mean[a]))
+  }
+  
+  p.b[1] ~ dnorm(0,0.01)
+  p.b[2] ~ dnorm(0,0.01)
+  
+  
+  ## sum up the number of individuals in all sites to estimate annual total N
+  for (t in 1:nYears){
+    for(a in 1:2){ 
+      Ntotal[t,a] <- sum(N[,t,a])
+    } 
+  }
+  
+}

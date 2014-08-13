@@ -3,9 +3,11 @@ Title: Compares detection corrected abundance estimates for single and multiple
     pass fish surveys
 Version: 0.1
 Authors@R: "Daniel Hocking <dhocking@usgs.gov> [aut, cre]"
-Description: What the package does (paragraph)
+Description: This package compares detection corrected abundance estimates for single and multiple
+    pass fish surveys. The analysis will be stored as a vignette.
 Depends:
-    R (>= 3.1.0),
+    R (>= 3.1.0)
+Imports:
     ggplot2,
     rjags,
     lme4,
@@ -13,7 +15,10 @@ Depends:
     dplyr,
     data.table,
     knitr,
-    roxygen2
+    roxygen2,
+    reshape,
+    detect,
+    lubridate
 License: MIT
 LazyData: true
 VignetteBuilder: knitr

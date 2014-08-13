@@ -9,6 +9,7 @@ Cleaning before entry into R:
 * Replaced `ND` (No Data) with `NA` for missing data
 * Changed `Species` to `Code` in the fish data headers to be able to merge with the species data (could do in R after import)
 * Added primary key
+* Removed `#` symbol from GameFish
 
 ```{r setup, results = 'hide', message = FALSE, warning = FALSE}
 rm(list=ls())
@@ -18,24 +19,166 @@ library(dplyr)
 library(ggplot2)
 library(lubridate)
 
-setwd('/Users/Dan/Documents/Research/Stream_Climate_Change/Brook_Trout/Compare_Single_Multiple_Pass/')
+setwd('/Users/Dan/Documents/Research/Stream_Climate_Change/Brook_Trout/singlePassDetection/')
 
-gameFish <- fread("Data/W_FI_Gamefish.csv", sep = ",")
+gameFish <- fread("inst/extdata/W_FI_Gamefish.csv", sep = ",", na.strings = c("NA", "ND", "", " "))
 
 gameFish[gameFish == 99] <- NA
 
-siteVisits <- fread("Data/R_SiteVisits.csv", sep = ",")
+siteVisits <- fread("inst/extdata/R_SiteVisits.csv", sep = ",")
 
 siteVisits[siteVisits == 999] <- NA
 
-species <- fread("Data/W_FI_zdd_FISH_Species.csv", sep = ",", header = TRUE)
-upstream <- fread("Data/shenandoahUpstreamStats.csv", sep = ",")
+species <- fread("inst/extdata/W_FI_zdd_FISH_Species.csv", sep = ",", header = TRUE)
+upstream <- fread("inst/extdata/shenandoahUpstreamStats.csv", sep = ",")
 
-siteVisits$date <- ymd_hms(siteVisits$sDate, tz = "US/Eastern")
+siteVisits$SiteID <- siteVisits$SITEID
+```
+
+```{r merge data frames & reshape to 1 line per site-visit-pass-species-age}
+
+# I love magrittr and pipes!
+fish <- gameFish %>%
+  group_by(SiteVisit_ID, RUN, Code, AGE) %>%
+  summarise(meanTL = mean(TL), count = n()) %>%
+  left_join(species, by = 'Code') %>%
+  left_join(siteVisits, by = 'SiteVisit_ID')
+
+```
+
+### Fill out RUN, species, and age combinations
+This is not efficient at all but I was having trouble getting the columns to fill out properly, so I just brute forced it.
+
+```{r Fill out RUN, species, and age combinations}
+fish$siteVisitPass <- paste0(fish$SiteVisit_ID, "--", fish$RUN)
+
+fullGrid <- expand.grid(siteVisitPass = unique(fish$siteVisitPass), Code = unique(fish$Code), AGE = 0:1)
+
+fullGrid$siteVisitPass <- as.character(fullGrid$siteVisitPass)
+fullGrid$Code <- as.character(fullGrid$Code)
+
+fullDF <- fullGrid %>%
+  left_join(fish, by = c("siteVisitPass", "Code", "AGE"))
+
+fullDF$SiteVisit_ID <- matrix(unlist(strsplit(fullDF$siteVisitPass, split = "--", fixed = TRUE)), ncol = 2, byrow = TRUE)[ , 1]
+
+fullDF$RUN <- matrix(unlist(strsplit(fullDF$siteVisitPass, split = "--", fixed = TRUE)), ncol = 2, byrow = TRUE)[ , 2]
+
+foo <- select(siteVisits, SiteVisit_ID, SITEID, sDate)
+fullDF2 <- left_join(fullDF, y = foo, by = c("SiteVisit_ID"))
+fullDF2$SiteID <- fullDF2$SITEID.y
+
+allDF <- left_join(fullDF2, upstream, by = 'SiteID')
+allDF[is.na(allDF$count), ]$count <- 0 # replace count NA with 0 because now all the combinations should represent site visits and passes that were conducted for all species and ages
+
+allDF$date <- ymd_hms(allDF$sDate.y, tz = "US/Eastern")
 
 ```
 
 
+```{r}
+
+# reduce to the variables of interest for modeling and rename the variables with consistent format
+
+subDF <- select(allDF,  
+                        SiteID,
+                        SiteVisit_ID,
+                        date,
+                        Code,
+                        RUN,
+                        AGE,
+                        count,
+                        FI_Shocker_Voltage,
+                        FEATUREID,
+                        Latitude,
+                        Longitude,
+                        TotDASqKM,
+                        ReachSlope,
+                        ReachElev,
+                        tmaxann_brkt,
+                        forest,
+                        developed)
+
+setnames(subDF, old = names(subDF), new = c("site",
+                                                            "SiteVisit_ID",
+                                                            "date",
+                          "spp",
+                          "pass",
+                          "age",
+                          "count",
+                          "voltage",
+                          "FEATUREID",
+                          "lat",
+                          "lon",
+                          "drainageArea",
+                          "slope",
+                          "elev",
+                          "tmaxAnn",
+                          "forest",
+                          "developed"))
+
+```
+
+### remove sites missing covariate data and filter to brook trout
+
+```{r}
+bktDF <- subDF %>%
+  filter(!is.na(lat)) %>%
+  filter(spp == "BKT")
+
+# check 
+subDF %>%
+  group_by(spp) %>%
+  summarise(siteVisitsPasses = n(), sum(count))
+
+gameFish %>%
+  group_by(Code) %>%
+  summarise(siteVisitsPasses = n())
+
+```
+
+### Prep climate data
+Use the same flow and temperature for all sites
+```{r}
+load("data/localShenDaymet.RData")
+
+climate <- fread('inst/extdata/Shen_climate_data.csv', sep=',')
+
+setnames(climate, names(climate), c("year", "yday", "tmax", "tmin", "precip", "siteID"))
+
+climate$day.year <- paste0(climate$yday, '-', climate$year)
+climate$date <- parse_date_time(climate$day.year, "%j%Y", tz = "US/Eastern")
+
+# move this function to functions in R/
+getSeason <- function(DATES) {
+    WS <- as.Date("2012-12-15", format = "%Y-%m-%d") # Winter Solstice
+    SE <- as.Date("2012-3-15",  format = "%Y-%m-%d") # Spring Equinox
+    SS <- as.Date("2012-6-15",  format = "%Y-%m-%d") # Summer Solstice
+    FE <- as.Date("2012-9-15",  format = "%Y-%m-%d") # Fall Equinox
+
+    # Convert dates from any year to 2012 dates
+    d <- as.Date(strftime(DATES, format="2012-%m-%d"))
+
+    ifelse (d >= WS | d < SE, "Winter",
+      ifelse (d >= SE & d < SS, "Spring",
+        ifelse (d >= SS & d < FE, "Summer", "Fall")))
+}
+
+climate$season <- getSeason(climate$date)
+annual.climate <- climate %>%
+  group_by(year, season) %>%
+  summarise(mean.tmax = mean(tmax), mean.precip = mean(precip))
+
+write.table(annual.climate, file = 'inst/extdata/annual-climate.csv', row.names = FALSE, sep = ",")
+
+masterData$season <- getSeason(masterData$date)
+
+annual.site.climate <- masterData %>%
+  group_by(site, year, season) %>%
+  summarise(mean.tmean = mean(airTemp), mean.precip = mean(prcp))
+
+save(annual.site.climate, file = 'data/annual-site-climate.RData')
+```
 
 
 
