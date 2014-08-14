@@ -223,13 +223,13 @@ summary(yoy.detect.1)
 exp(predict(yoy.detect.1))
 mean(exp(predict(yoy.detect.1)))
 
-  CL <- makeCluster(3) # set number of clusters = to number of desired chains
+  CL <- makeCluster(4) # set number of clusters
   clusterExport(cl=CL, list("yoy.detect.1", "pass1", "data.full", "nsim", "bootSingleVisit", "groupResample"), envir = environment()) # make data available to jags in diff cores
   clusterSetRNGStream(cl = CL, iseed = 10101)
   
   out <- clusterEvalQ(CL, {
     library(detect)
-    preds <- bootSingleVisit(yoy.detect.1, pass1, data.full, nsim = 1)
+    preds <- bootSingleVisit(yoy.detect.1, pass1, data.full, nsim = 25)
     return(preds)
     
   })
