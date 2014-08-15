@@ -116,8 +116,57 @@ out2 <- jags.samples(StageBurnin, ParsStage, n.iter=Niter, thin=10)
 str(out2)
 ```
 
-## Extract Abundance Estimates
+## Extract Abundance and Detection Estimates
 ```{r}
+N.est <- N.uci <- N.lci <- p.est <- p.uci <- p.lci <- array(NA, dim=c(nSites,nYears,nAges))
+for(i in 1:nSites){
+  for(t in 1:nYears){
+    for(a in 1:nAges){
+      N.est[i,t,a] <- median(out2$N[i,t,a,1:200,1:3])
+      N.lci[i,t,a] <- quantile(out2$N[i,t,a,1:200,1:3], probs = c(0.025))
+      N.uci[i,t,a] <- quantile(out2$N[i,t,a,1:200,1:3], probs = c(0.975))
+      p.est[i,t,a] <- median(out2$p[i,t,a,1:200,1:3])
+      p.lci[i,t,a] <- quantile(out2$p[i,t,a,1:200,1:3], probs = c(0.025))
+      p.uci[i,t,a] <- quantile(out2$p[i,t,a,1:200,1:3], probs = c(0.975))
+    }
+  }
+}
+
+shapeLong <- function(data, age = "yoy") {
+  if(age == "yoy") {
+    A <- 1
+  } else if(age == "adult") {
+    A <- 2
+  } else {
+    stop("age must be 'yoy' or 'adult'")
+  }
+  foo <- data.frame(data[ , , A])
+  foo$site <- paste0("Site", row.names(foo))
+  colnames(foo) <- c(1996:2010, "site")
+  bar <- reshape::melt(foo, id = "site")
+  names(bar) <- c("site", "year", paste0("N.",age))
+  cash <- mutate(bar, site.year = paste0(site, "-", year))
+  long <- cash[ , c("site.year", paste0("N.",age))]
+  return(long)
+}
+
+shapeLong(N.est, age = "yoy") # should be ok
+shapeLong(N.est, age = "adult") # should be ok
+shapeLong(N.est, age = "YOY") # should fail
+
+Nhat.dm.yoy <- shapeLong(N.est, age = "yoy")
+lci.dm.yoy <- shapeLong(N.lci, age = "yoy")
+uci.dm.yoy <- shapeLong(N.uci, age = "yoy")
+
+Nhat.dm.adult <- shapeLong(N.est, age = "adult")
+lci.dm.adult <- shapeLong(N.lci, age = "adult")
+uci.dm.adult <- shapeLong(N.uci, age = "adult")
+
+N.dm.yoy <- data.frame(site.year = Nhat.dm.yoy$site.year, N.dm.yoy = Nhat.dm.yoy$N.yoy, lci.dm.yoy = lci.dm.yoy$N.yoy, uci.dm.yoy = uci.dm.yoy$N.yoy)
+
+N.dm.adult <- data.frame(site.year = Nhat.dm.adult$site.year, N.dm.adult = Nhat.dm.adult$N.adult, lci.dm.adult = lci.dm.adult$N.adult, uci.dm.adult = uci.dm.adult$N.adult)
+
+save(N.dm.yoy, N.dm.adult, file = "data/N-dail-madsen.RData")
 
 ```
 

@@ -233,6 +233,23 @@ adult.detect.4 <- svabu(c.adults ~ elev + fyear | day + width, data = pass1, zer
 summary(adult.detect.4)
 
 AIC(adult.detect.1, adult.detect.3, adult.detect.4) # better to just have year effects than specific covariates. There are other things going on besides mean seaonal flow and temp that affect abundance that vary across the whole park annually. Ideally there would be random year and site effects with covariates. Also problem that flow and temperature are identical across all sites.
+
+  CL <- makeCluster(4) # set number of clusters
+  clusterExport(cl=CL, list("adult.detect.1", "pass1", "data.full", "nsim", "bootSingleVisit", "groupResample"), envir = environment()) # make data available to jags in diff cores
+  clusterSetRNGStream(cl = CL, iseed = 10101)
+  
+  out <- clusterEvalQ(CL, {
+    library(detect)
+    preds <- bootSingleVisit(adult.detect.1, pass1, data.full, nsim = 25)
+    return(preds)
+    
+  })
+  stopCluster(CL)
+
+N.adult.boot <- matrix(unlist(out), nrow = nrow(data.full))
+
+save(N.adult.boot, file = "data/N-adult.boot.RData")
+
  
 yoy.detect.1 <- svabu(c.yoy ~ fall.flow + winter.flow + spring.flow + mean.tmean.Spring + elev | day + width, data = pass1, zeroinfl = TRUE)
 summary(yoy.detect.1)
@@ -271,7 +288,21 @@ lci.detect.yoy <- apply(N.yoy.boot, MARGIN = 1, FUN = quantile, probs = c(0.025)
 
 N.detect.yoy <- data.frame(N.detect.yoy = Nhat.detect.p, lci.detect.yoy = lci.detect.yoy, uci.detect.yoy = uci.detect.yoy)
 
-data.site.year <- data.frame(N.detect.yoy, N.glmm.yoy, N.glmm.adult, data.full)
+
+load(file = "data/N-dail-madsen.RData")
+#load(file = "data/N-detect-adult.RData")
+
+
+Nhat.detect.adult <- apply(N.adult.boot, MARGIN = 1, FUN = mean, na.rm = TRUE)
+uci.detect.adult <- apply(N.adult.boot, MARGIN = 1, FUN = quantile, probs = c(0.975), na.rm = TRUE)
+lci.detect.adult <- apply(N.adult.boot, MARGIN = 1, FUN = quantile, probs = c(0.025), na.rm = TRUE)
+
+N.detect.adult <- data.frame(N.detect.adult = Nhat.detect.p, lci.detect.adult = lci.detect.adult, uci.detect.adult = uci.detect.adult)
+
+N.dm.adult <- N.dm.adult[73:1080, -1]
+N.dm.yoy <- N.dm.yoy[73:1080, -1]
+  
+data.site.year <- data.frame(N.detect.yoy, N.detect.adult, N.glmm.yoy, N.glmm.adult, N.dm.yoy, N.dm.adult, data.full)
 data.site.year <- mutate(data.site.year, year = as.integer(as.character(fyear))) 
 
 sites.1.2.3.4 <- data.site.year %>%
@@ -341,6 +372,7 @@ yoy1 <- mutate(yoy1, site.year = paste0(site, "-", year))
 yoy2 <- mutate(yoy2, site.year = paste0(site, "-", year))
 yoy3 <- mutate(yoy3, site.year = paste0(site, "-", year))
 data.site.year <- mutate(data.site.year, site.year = paste0(site, "-", year))
+
 
 
 N.count <- data.site.year %>%
