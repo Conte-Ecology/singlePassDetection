@@ -1,3 +1,18 @@
+#' @title Predictions from glmer model
+#'
+#' @description
+#' \code{myPredict} predictions from glmer model for use in apply function
+#'
+#' @param model merMod object from glmer model fit
+#' @param newdata Dataframe of independent variables to predict on
+#' 
+#' @details
+#' blah, blah, something, something
+myPredict <- function(model, newdata = data.full, re.form) {
+  preds <- predict(model, newdata = newdata, type = "response", re.form = re.form)
+  return(preds)
+}
+
 #' @title Bootstrap hierarchical data
 #'
 #' @description
