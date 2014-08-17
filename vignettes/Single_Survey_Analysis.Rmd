@@ -240,11 +240,13 @@ AIC(adult.detect.1, adult.detect.3, adult.detect.4) # better to just have year e
   
   out <- clusterEvalQ(CL, {
     library(detect)
-    preds <- bootSingleVisit(adult.detect.1, pass1, data.full, nsim = 25)
+    preds <- bootSingleVisit(adult.detect.1, pass1, data.full, nsim = 10)
     return(preds)
     
   })
   stopCluster(CL)
+
+   # preds <- bootSingleVisit(adult.detect.1, pass1, data.full, nsim = 10)
 
 N.adult.boot <- matrix(unlist(out), nrow = nrow(data.full))
 
@@ -255,6 +257,8 @@ yoy.detect.1 <- svabu(c.yoy ~ fall.flow + winter.flow + spring.flow + mean.tmean
 summary(yoy.detect.1)
 exp(predict(yoy.detect.1))
 mean(exp(predict(yoy.detect.1)))
+
+cbind(exp(predict(test.yoy)), exp(predict(yoy.detect.1)))
 
   CL <- makeCluster(4) # set number of clusters
   clusterExport(cl=CL, list("yoy.detect.1", "pass1", "data.full", "nsim", "bootSingleVisit", "groupResample"), envir = environment()) # make data available to jags in diff cores
@@ -292,12 +296,15 @@ N.detect.yoy <- data.frame(N.detect.yoy = Nhat.detect.p, lci.detect.yoy = lci.de
 load(file = "data/N-dail-madsen.RData")
 #load(file = "data/N-detect-adult.RData")
 
+Nhat.detect.adult <- apply(N.adult.combine, MARGIN = 1, FUN = mean, na.rm = TRUE)
+uci.detect.adult <- apply(N.adult.combine, MARGIN = 1, FUN = quantile, probs = c(0.975), na.rm = TRUE)
+lci.detect.adult <- apply(N.adult.combine, MARGIN = 1, FUN = quantile, probs = c(0.025), na.rm = TRUE)
 
 Nhat.detect.adult <- apply(N.adult.boot, MARGIN = 1, FUN = mean, na.rm = TRUE)
 uci.detect.adult <- apply(N.adult.boot, MARGIN = 1, FUN = quantile, probs = c(0.975), na.rm = TRUE)
 lci.detect.adult <- apply(N.adult.boot, MARGIN = 1, FUN = quantile, probs = c(0.025), na.rm = TRUE)
 
-N.detect.adult <- data.frame(N.detect.adult = Nhat.detect.p, lci.detect.adult = lci.detect.adult, uci.detect.adult = uci.detect.adult)
+N.detect.adult <- data.frame(N.detect.adult = Nhat.detect.adult, lci.detect.adult = lci.detect.adult, uci.detect.adult = uci.detect.adult)
 
 N.dm.adult <- N.dm.adult[73:1080, -1]
 N.dm.yoy <- N.dm.yoy[73:1080, -1]
@@ -311,22 +318,65 @@ sites.1.2.3.4 <- data.site.year %>%
   filter(site == "Site1" | site == "Site17" | site == "Site24" | site == "Site27")
 
 
-ggplot(sites.1.2.3.4, aes(year, N.detect.adult)) +
-  geom_errorbar(aes(ymin = lci.detect.adult, ymax = uci.detect.adult)) +
+ggplot(sites.1.2.3.4, aes(year, N.dm.adult)) +
+  geom_errorbar(aes(ymin = lci.dm.adult, ymax = uci.dm.adult)) +
   geom_point() + geom_line() + 
   geom_point(aes(year, N.glmm.adult), colour = 'red') + geom_line(aes(year, N.glmm.adult), colour = 'red') + 
   geom_errorbar(aes(x = year+.1, ymin = lci.glmm.adult, ymax = uci.glmm.adult), colour = 'red') +
+  geom_point(aes(year, N.detect.adult), colour = 'blue') + geom_line(aes(year, N.detect.adult), colour = 'blue') + 
+  geom_errorbar(aes(x = year-.1, ymin = lci.detect.adult, ymax = uci.detect.adult), colour = 'blue') +
   facet_wrap( ~ site) +
   theme_bw()
 
-ggplot(sites.1.2.3.4, aes(year, N.detect.yoy)) +
-  geom_errorbar(aes(ymin = lci.detect.yoy, ymax = uci.detect.yoy)) +
+ggplot(sites.1.2.3.4, aes(year, N.dm.yoy)) +
+  geom_errorbar(aes(ymin = lci.dm.yoy, ymax = uci.dm.yoy)) +
   geom_point() + geom_line() + 
   geom_point(aes(year, N.glmm.yoy), colour = 'red') + geom_line(aes(year, N.glmm.yoy), colour = 'red') + 
   geom_errorbar(aes(x = year+.1, ymin = lci.glmm.yoy, ymax = uci.glmm.yoy), colour = 'red') +
+  geom_point(aes(year, N.detect.yoy), colour = 'blue') + geom_line(aes(year, N.detect.yoy), colour = 'blue') + 
+  geom_errorbar(aes(x = year-.1, ymin = lci.detect.yoy, ymax = uci.detect.yoy), colour = 'blue') +
   facet_wrap( ~ site) +
   theme_bw()
 
+# Compare site 1 and 27 for adult and yoy
+sites.1.17 <- data.site.year %>%
+  # mutate(year = as.integer(as.character(fyear))) %>%
+  #group_by(site) %>%
+  filter(site == "Site1" | site == "Site17")
+
+
+ggplot(sites.1.17, aes(year, N.dm.adult)) +
+  geom_errorbar(aes(ymin = lci.dm.adult, ymax = uci.dm.adult)) +
+  geom_point() + geom_line() + 
+  xlab("Year") + ylab("Adult Abundance") +
+  geom_point(aes(year, N.glmm.adult), colour = 'red') + geom_line(aes(year, N.glmm.adult), colour = 'red') + 
+  geom_errorbar(aes(x = year+.1, ymin = lci.glmm.adult, ymax = uci.glmm.adult), colour = 'red') +
+  geom_point(aes(year, N.detect.adult), colour = 'blue') + geom_line(aes(year, N.detect.adult), colour = 'blue') + 
+  geom_errorbar(aes(x = year-.1, ymin = lci.detect.adult, ymax = uci.detect.adult), colour = 'blue') +
+  facet_wrap( ~ site) +
+  theme_bw() +
+  theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=14,face="bold"))
+
+sites.1.27 <- data.site.year %>%
+  # mutate(year = as.integer(as.character(fyear))) %>%
+  #group_by(site) %>%
+  filter(site == "Site1" | site == "Site27")
+
+ggplot(sites.1.27, aes(year, N.dm.yoy)) +
+  geom_errorbar(aes(ymin = lci.dm.yoy, ymax = uci.dm.yoy)) +
+  geom_point() + geom_line() + 
+    xlab("Year") + ylab("YOY Abundance") +
+  geom_point(aes(year, N.glmm.yoy), colour = 'red') + geom_line(aes(year, N.glmm.yoy), colour = 'red') + 
+  geom_errorbar(aes(x = year+.1, ymin = lci.glmm.yoy, ymax = uci.glmm.yoy), colour = 'red') +
+  geom_point(aes(year, N.detect.yoy), colour = 'blue') + geom_line(aes(year, N.detect.yoy), colour = 'blue') + 
+  geom_errorbar(aes(x = year-.1, ymin = lci.detect.yoy, ymax = uci.detect.yoy), colour = 'blue') +
+  facet_wrap( ~ site) +
+  theme_bw() + 
+  theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=14,face="bold"))
+
+#### Add raw data to plots ------------
 # Convert wide to long for plotting comparison
 yoy.2 <- data.frame(Dat$y[1:72, 2:15, 1, 2]) # all sites, all years, yoy, pass 1
 adult.2 <- data.frame(Dat$y[1:72, 2:15, 2, 2]) # all sites, all years, adult, pass 1
@@ -383,6 +433,40 @@ N.count <- data.site.year %>%
   left_join(yoy2, by = "site.year") %>%
   left_join(yoy3, by = "site.year")
 
+
+N.count.site <- filter(N.count, filter = site.x == "Site2")
+
+p1 <- ggplot(N.count.site, aes(year,c.yoy), ) +
+  geom_point(shape = "1", size = 3) +
+    xlab("Year") + ylab("YOY Abundance") +
+  ylim(c(0, max(N.count.site$uci.dm.yoy))) +
+    theme_bw() + 
+  theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=14,face="bold"))
+p1
+
+p2 <- p1 + geom_point(aes(year, c.yoy + c.yoy2), shape = "2", size = 3)
+p2
+
+p3 <- p2 + geom_point(aes(year, c.yoy + c.yoy2 + c.yoy3), shape = "3", size = 3)
+p3
+
+p3.detect <- p3 + geom_point(aes(year, N.detect.yoy), colour = 'blue') + geom_line(aes(year, N.detect.yoy), colour = 'blue') + 
+  geom_errorbar(aes(x = year-.1, ymin = lci.detect.yoy, ymax = uci.detect.yoy), colour = 'blue')
+p3.detect
+
+p3.detect.dm <- p3.detect + geom_point(aes(year, N.dm.yoy)) + geom_line(aes(year, N.dm.yoy)) +
+    geom_errorbar(aes(ymin = lci.dm.yoy, ymax = uci.dm.yoy))
+p3.detect.dm
+
+
+
+
+
+
+
+
+
 N.count.site1 <- filter(N.count, filter = site.x == "Site1")
 ggplot(N.count.site1, aes(year, N.detect.yoy)) +
   geom_errorbar(aes(ymin = lci.detect.yoy, ymax = uci.detect.yoy)) +
@@ -435,4 +519,16 @@ agg.yoy <- aggregate(yoy.n, by = list(yoy.n$year), FUN = mean, na.rm = TRUE)
 agg.yoy$N.pop <- agg.yoy$N * 72
 ```
 
+
+
+```{r compare coefficients}
+
+##### how to compare coefficients since DM in terms of survival and recruitment?????
+
+coef(adult.detect.1)
+fixef(adult.glmm.p)
+
+summary(adult.detect.1)
+summary(adult.glmm.p)
+```
 

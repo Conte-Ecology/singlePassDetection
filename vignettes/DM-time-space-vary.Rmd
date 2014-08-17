@@ -170,6 +170,52 @@ save(N.dm.yoy, N.dm.adult, file = "data/N-dail-madsen.RData")
 
 ```
 
+```{r coefficients}
+
+recruit.coefs <- NULL
+for(i in 1:5) {
+  foo <- quantile(out2$gamma.b[i, , ], probs = c(0.5, 0.025, 0.975))
+  recruit.coefs <- rbind(recruit.coefs, foo)
+  }
+row.names(recruit.coefs) <- c("fall.flow", "winter.flow", "spring.flow", "spring.temp", "elev")
+recruit.coefs
+
+survival.coefs.adult <- NULL
+for(i in 1:5) {
+  foo <- quantile(out2$omega.b[i, 2, , ], probs = c(0.5, 0.025, 0.975))
+  survival.coefs.adult <- rbind(survival.coefs.adult, foo)
+  }
+row.names(survival.coefs.adult) <- c("fall.flow", "winter.flow", "spring.flow", "spring.temp", "elev")
+survival.coefs.adult
+
+survival.coefs.yoy <- NULL
+for(i in 1:5) {
+  foo <- quantile(out2$omega.b[i, 1, , ], probs = c(0.5, 0.025, 0.975))
+  survival.coefs.yoy <- rbind(survival.coefs.yoy, foo)
+  }
+row.names(survival.coefs.yoy) <- c("fall.flow", "winter.flow", "spring.flow", "spring.temp", "elev")
+survival.coefs.yoy
+
+# detection
+detect.coefs <- NULL
+for(i in 1:2) {
+  foo <- quantile(out2$p.b[i, , ], probs = c(0.5, 0.025, 0.975))
+  detect.coefs <- rbind(detect.coefs, foo)
+  }
+row.names(detect.coefs) <- c("day", "width")
+detect.coefs
+
+detect.coefs.mean <- NULL
+for(i in 1:2) {
+  foo <- quantile(out2$p.mu[i, , ], probs = c(0.5, 0.025, 0.975))
+  detect.coefs.mean <- rbind(detect.coefs.mean, foo)
+  }
+row.names(detect.coefs.mean) <- c("yoy", "adult")
+detect.coefs.mean
+
+```
+
+
 ## Rhat and DIC
 ```{r dic}
 ## gelman

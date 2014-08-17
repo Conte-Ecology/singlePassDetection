@@ -9,7 +9,7 @@
 #' @details
 #' blah, blah, something, something
 myPredict <- function(model, newdata = data.full, re.form) {
-  preds <- predict(model, newdata = newdata, type = "response", re.form = re.form)
+  preds <- predict(model, newdata = newdata, type = "response", re.form = NA)
   return(preds)
 }
 
