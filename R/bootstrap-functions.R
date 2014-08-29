@@ -44,13 +44,14 @@ groupResample <- function(dat, group, replace) {
 #' blah, blah, blah
 bootSingleVisit <- function(x, fit.data, new.data, nsim, seed = NULL) {
   pred.vals <- matrix(NA, nrow = dim(new.data)[1], ncol = nsim)
-  if (!is.null(seed)) 
-    set.seed(seed)
+  #if (!is.null(seed)) 
+   # set.seed(seed)
   pb <- txtProgressBar(min = 0, max = nsim, style = 3)
   for(i in 1:nsim) {
     bootData <- groupResample(fit.data, group = "site", replace = TRUE)
     result <- svabu(formula(x)$full, data = bootData) # x$model) #bootData[[i]])
     pred.vals[ , i] <- exp(predict(result, new.data))
+
     setTxtProgressBar(pb, i)
   }
   close(pb)

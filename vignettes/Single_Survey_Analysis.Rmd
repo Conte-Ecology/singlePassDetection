@@ -223,6 +223,53 @@ summary(yoy.detect.1)
 exp(predict(yoy.detect.1))
 mean(exp(predict(yoy.detect.1)))
 
+```
+
+
+```{r confidence intervals}
+ 
+  CL <- makeCluster(10) # set number of clusters
+  clusterExport(cl=CL, list("adult.detect.1", "pass1", "data.full", "bootSingleVisit", "groupResample"), envir = environment()) # make data available to jags in diff cores
+  clusterSetRNGStream(cl = CL)
+  
+  out <- clusterEvalQ(CL, {
+    library(detect)
+    preds <- bootSingleVisit(adult.detect.1, pass1, data.full, nsim = 1)
+    return(preds)
+    
+  })
+  stopCluster(CL)
+
+N.adult <- matrix(unlist(out), nrow = nrow(data.full))
+
+N.adult.1 <- N.adult
+N.adult.2 <- N.adult
+N.adult.3 <- N.adult
+N.adult.4 <- N.adult
+N.adult.5 <- N.adult
+N.adult.6 <- N.adult
+N.adult.7 <- N.adult
+N.adult.8 <- N.adult
+N.adult.9 <- N.adult
+N.adult.10 <- N.adult
+
+N.adult.boot <- data.frame(N.adult.1,
+                              N.adult.2,
+                              N.adult.3,
+                              N.adult.4,
+                              N.adult.5,
+                              N.adult.6,
+                              N.adult.7,
+                              N.adult.8,
+                              N.adult.9,
+                              N.adult.10)
+
+N.adult.boot <- data.frame(N.adult, N.combine)
+
+save(N.adult.boot, file = 'data/N-detect-adult.RData')
+save(N.adult.combine, file = 'C:/Users/dhocking/Dropbox/')
+
+
   CL <- makeCluster(4) # set number of clusters
   clusterExport(cl=CL, list("yoy.detect.1", "pass1", "data.full", "nsim", "bootSingleVisit", "groupResample"), envir = environment()) # make data available to jags in diff cores
   clusterSetRNGStream(cl = CL, iseed = 10101)
@@ -238,6 +285,7 @@ mean(exp(predict(yoy.detect.1)))
 matrix(unlist(out), nrow = nrow(data.full))
 
 ```
+
 
 ```{r summaries}
 library(dplyr)
