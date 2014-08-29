@@ -119,27 +119,29 @@ predictions <- predict(adult.glmm.p, newdata = data.full)
 library(arm) # for posterior predictive confidence intervals (only works for fitted values)
 adult.glmm.p.sim <- sim(adult.glmm.p, n.sims = 1000)
 str(adult.glmm.p.sim)
-yhat <- fitted(adult.glmm.p.sim, adult.glmm.p)
+yhat.fit <- fitted(adult.glmm.p.sim, adult.glmm.p)
 
-Nhat.glmm.p <- apply(yhat, MARGIN = 1, FUN = mean)
-uci.glmm.p <- apply(yhat, MARGIN = 1, FUN = quantile, probs = c(0.975))
-lci.glmm.p <- apply(yhat, MARGIN = 1, FUN = quantile, probs = c(0.025))
+Nhat.glmm.fit <- apply(yhat.fit, MARGIN = 1, FUN = mean)
+uci.glmm.fit <- apply(yhat.fit, MARGIN = 1, FUN = quantile, probs = c(0.975))
+lci.glmm.fit <- apply(yhat.fit, MARGIN = 1, FUN = quantile, probs = c(0.025))
 
-N.glmm <- data.frame(N = Nhat.glmm.p, lci = lci.glmm.p, uci = uci.glmm.p)
+N.glmm.fit.adult <- data.frame(N = Nhat.glmm.fit, lci = lci.glmm.fit, uci = uci.glmm.fit)
+
 
 # Predictions with CI using bootMer
-myPredict <- function(.) {
-  preds <- exp(predict(., newdata = data.full))
-  return(preds)
-}
-test <- myPredict(adult.glmm.p)
-yhat.boot <- bootMer(adult.glmm.p, FUN = myPredict, nsim = 100)
+(test <- data.frame(fit = fitted(adult.glmm.p), pred.site = myPredict(adult.glmm.p, newdata = pass1[which(!is.na(pass1$c.adults)), ], re.form = NULL), pred.fix = myPredict(adult.glmm.p, newdata = pass1[which(!is.na(pass1$c.adults)), ], re.form = NA)))
+test$row <- row.names(test)
+pass1.n <- pass1
+pass1.n$row <- row.names(pass1.n)
+left_join(test, pass1.n[ , c("row", "c.adults")], by = 'row')
 
-Nhat.glmm.p <- apply(yhat.boot$t, MARGIN = 2, FUN = mean, na.rm = TRUE)
-uci.glmm.p <- apply(yhat.boot$t, MARGIN = 2, FUN = quantile, probs = c(0.975), na.rm = TRUE)
-lci.glmm.p <- apply(yhat.boot$t, MARGIN = 2, FUN = quantile, probs = c(0.025), na.rm = TRUE)
+yhat.boot.adult <- bootMer(adult.glmm.p, FUN = myPredict, nsim = 100)
 
-N.glmm.adult <- data.frame(N = Nhat.glmm.p, lci = lci.glmm.p, uci = uci.glmm.p)
+Nhat.glmm.adult <- apply(yhat.boot.adult$t, MARGIN = 2, FUN = mean, na.rm = TRUE)
+uci.glmm.adult <- apply(yhat.boot.adult$t, MARGIN = 2, FUN = quantile, probs = c(0.975), na.rm = TRUE)
+lci.glmm.adult <- apply(yhat.boot.adult$t, MARGIN = 2, FUN = quantile, probs = c(0.025), na.rm = TRUE)
+
+N.glmm.adult <- data.frame(N.glmm.adult = Nhat.glmm.adult, lci.glmm.adult = lci.glmm.adult, uci.glmm.adult = uci.glmm.adult)
 ```
 
 ```{r test optimization for glmer}
@@ -192,13 +194,27 @@ yoy.glmm.p <- glmer(c.yoy ~ fall.flow + winter.flow + spring.flow + mean.tmean.S
 
 summary(yoy.glmm.p)
 
-yhat.boot <- bootMer(yoy.glmm.p, FUN = myPredict, nsim = 100)
+library(arm) # for posterior predictive confidence intervals (only works for fitted values)
+yoy.glmm.p.sim <- sim(yoy.glmm.p, n.sims = 1000)
+str(yoy.glmm.p.sim)
+yhat.fit <- fitted(yoy.glmm.p.sim, yoy.glmm.p)
 
-Nhat.glmm.p <- apply(yhat.boot$t, MARGIN = 2, FUN = mean, na.rm = TRUE)
-uci.glmm.p <- apply(yhat.boot$t, MARGIN = 2, FUN = quantile, probs = c(0.975), na.rm = TRUE)
-lci.glmm.p <- apply(yhat.boot$t, MARGIN = 2, FUN = quantile, probs = c(0.025), na.rm = TRUE)
+Nhat.glmm.fit <- apply(yhat.fit, MARGIN = 1, FUN = mean)
+uci.glmm.fit <- apply(yhat.fit, MARGIN = 1, FUN = quantile, probs = c(0.975))
+lci.glmm.fit <- apply(yhat.fit, MARGIN = 1, FUN = quantile, probs = c(0.025))
 
-N.glmm.yoy <- data.frame(N = Nhat.glmm.p, lci = lci.glmm.p, uci = uci.glmm.p)
+N.glmm.fit.yoy <- data.frame(N = Nhat.glmm.fit, lci = lci.glmm.fit, uci = uci.glmm.fit)
+
+# Predictions with CI using bootMer
+yhat.boot.yoy <- bootMer(yoy.glmm.p, FUN = myPredict, nsim = 100)
+
+Nhat.glmm.yoy <- apply(yhat.boot.yoy$t, MARGIN = 2, FUN = mean, na.rm = TRUE)
+uci.glmm.yoy <- apply(yhat.boot.yoy$t, MARGIN = 2, FUN = quantile, probs = c(0.975), na.rm = TRUE)
+lci.glmm.yoy <- apply(yhat.boot.yoy$t, MARGIN = 2, FUN = quantile, probs = c(0.025), na.rm = TRUE)
+
+
+
+N.glmm.yoy <- data.frame(N.glmm.yoy = Nhat.glmm.yoy, lci.glmm.yoy = lci.glmm.yoy, uci.glmm.yoy = uci.glmm.yoy)
 ```
 
 Quick models of abundance using the `detect` package. Modelled all site-visits as independent so technically pseudoreplicated. The problem is there is no way to have random effects of site or year. Unfortunately, there is insufficient data from Yoichiro's Dail-Madsen model to independently model each year separately in `detect`. Also, the flows and temperatures are assumed to be equal across all sites in a given year, so I can't have year as a factor in the model while retaining flow or temperature because they are colinear.
@@ -217,11 +233,31 @@ adult.detect.4 <- svabu(c.adults ~ elev + fyear | day + width, data = pass1, zer
 summary(adult.detect.4)
 
 AIC(adult.detect.1, adult.detect.3, adult.detect.4) # better to just have year effects than specific covariates. There are other things going on besides mean seaonal flow and temp that affect abundance that vary across the whole park annually. Ideally there would be random year and site effects with covariates. Also problem that flow and temperature are identical across all sites.
+
+  CL <- makeCluster(4) # set number of clusters
+  clusterExport(cl=CL, list("adult.detect.1", "pass1", "data.full", "nsim", "bootSingleVisit", "groupResample"), envir = environment()) # make data available to jags in diff cores
+  clusterSetRNGStream(cl = CL, iseed = 10101)
+  
+  out <- clusterEvalQ(CL, {
+    library(detect)
+    preds <- bootSingleVisit(adult.detect.1, pass1, data.full, nsim = 10)
+    return(preds)
+    
+  })
+  stopCluster(CL)
+
+   # preds <- bootSingleVisit(adult.detect.1, pass1, data.full, nsim = 10)
+
+N.adult.boot <- matrix(unlist(out), nrow = nrow(data.full))
+
+save(N.adult.boot, file = "data/N-adult.boot.RData")
+
  
 yoy.detect.1 <- svabu(c.yoy ~ fall.flow + winter.flow + spring.flow + mean.tmean.Spring + elev | day + width, data = pass1, zeroinfl = TRUE)
 summary(yoy.detect.1)
 exp(predict(yoy.detect.1))
 mean(exp(predict(yoy.detect.1)))
+
 
 ```
 
@@ -269,6 +305,8 @@ N.adult.boot <- data.frame(N.adult, N.combine)
 save(N.adult.boot, file = 'data/N-detect-adult.RData')
 save(N.adult.combine, file = 'C:/Users/dhocking/Dropbox/')
 
+cbind(exp(predict(test.yoy)), exp(predict(yoy.detect.1)))
+
 
   CL <- makeCluster(4) # set number of clusters
   clusterExport(cl=CL, list("yoy.detect.1", "pass1", "data.full", "nsim", "bootSingleVisit", "groupResample"), envir = environment()) # make data available to jags in diff cores
@@ -282,13 +320,216 @@ save(N.adult.combine, file = 'C:/Users/dhocking/Dropbox/')
   })
   stopCluster(CL)
 
-matrix(unlist(out), nrow = nrow(data.full))
+N.yoy.boot <- matrix(unlist(out), nrow = nrow(data.full))
+
+save(N.yoy.boot, file = "data/N-yoy.boot.RData")
 
 ```
 
 
 ```{r summaries}
 library(dplyr)
+
+if(!exists("N.yoy.boot")) {
+  load("data/N-yoy-boot.RData")
+}
+
+
+Nhat.detect.yoy <- apply(N.yoy.boot, MARGIN = 1, FUN = mean, na.rm = TRUE)
+uci.detect.yoy <- apply(N.yoy.boot, MARGIN = 1, FUN = quantile, probs = c(0.975), na.rm = TRUE)
+lci.detect.yoy <- apply(N.yoy.boot, MARGIN = 1, FUN = quantile, probs = c(0.025), na.rm = TRUE)
+
+N.detect.yoy <- data.frame(N.detect.yoy = Nhat.detect.p, lci.detect.yoy = lci.detect.yoy, uci.detect.yoy = uci.detect.yoy)
+
+
+load(file = "data/N-dail-madsen.RData")
+#load(file = "data/N-detect-adult.RData")
+
+Nhat.detect.adult <- apply(N.adult.combine, MARGIN = 1, FUN = mean, na.rm = TRUE)
+uci.detect.adult <- apply(N.adult.combine, MARGIN = 1, FUN = quantile, probs = c(0.975), na.rm = TRUE)
+lci.detect.adult <- apply(N.adult.combine, MARGIN = 1, FUN = quantile, probs = c(0.025), na.rm = TRUE)
+
+Nhat.detect.adult <- apply(N.adult.boot, MARGIN = 1, FUN = mean, na.rm = TRUE)
+uci.detect.adult <- apply(N.adult.boot, MARGIN = 1, FUN = quantile, probs = c(0.975), na.rm = TRUE)
+lci.detect.adult <- apply(N.adult.boot, MARGIN = 1, FUN = quantile, probs = c(0.025), na.rm = TRUE)
+
+N.detect.adult <- data.frame(N.detect.adult = Nhat.detect.adult, lci.detect.adult = lci.detect.adult, uci.detect.adult = uci.detect.adult)
+
+N.dm.adult <- N.dm.adult[73:1080, -1]
+N.dm.yoy <- N.dm.yoy[73:1080, -1]
+  
+data.site.year <- data.frame(N.detect.yoy, N.detect.adult, N.glmm.yoy, N.glmm.adult, N.dm.yoy, N.dm.adult, data.full)
+data.site.year <- mutate(data.site.year, year = as.integer(as.character(fyear))) 
+
+sites.1.2.3.4 <- data.site.year %>%
+  # mutate(year = as.integer(as.character(fyear))) %>%
+  #group_by(site) %>%
+  filter(site == "Site1" | site == "Site17" | site == "Site24" | site == "Site27")
+
+
+ggplot(sites.1.2.3.4, aes(year, N.dm.adult)) +
+  geom_errorbar(aes(ymin = lci.dm.adult, ymax = uci.dm.adult)) +
+  geom_point() + geom_line() + 
+  geom_point(aes(year, N.glmm.adult), colour = 'red') + geom_line(aes(year, N.glmm.adult), colour = 'red') + 
+  geom_errorbar(aes(x = year+.1, ymin = lci.glmm.adult, ymax = uci.glmm.adult), colour = 'red') +
+  geom_point(aes(year, N.detect.adult), colour = 'blue') + geom_line(aes(year, N.detect.adult), colour = 'blue') + 
+  geom_errorbar(aes(x = year-.1, ymin = lci.detect.adult, ymax = uci.detect.adult), colour = 'blue') +
+  facet_wrap( ~ site) +
+  theme_bw()
+
+ggplot(sites.1.2.3.4, aes(year, N.dm.yoy)) +
+  geom_errorbar(aes(ymin = lci.dm.yoy, ymax = uci.dm.yoy)) +
+  geom_point() + geom_line() + 
+  geom_point(aes(year, N.glmm.yoy), colour = 'red') + geom_line(aes(year, N.glmm.yoy), colour = 'red') + 
+  geom_errorbar(aes(x = year+.1, ymin = lci.glmm.yoy, ymax = uci.glmm.yoy), colour = 'red') +
+  geom_point(aes(year, N.detect.yoy), colour = 'blue') + geom_line(aes(year, N.detect.yoy), colour = 'blue') + 
+  geom_errorbar(aes(x = year-.1, ymin = lci.detect.yoy, ymax = uci.detect.yoy), colour = 'blue') +
+  facet_wrap( ~ site) +
+  theme_bw()
+
+# Compare site 1 and 27 for adult and yoy
+sites.1.17 <- data.site.year %>%
+  # mutate(year = as.integer(as.character(fyear))) %>%
+  #group_by(site) %>%
+  filter(site == "Site1" | site == "Site17")
+
+
+ggplot(sites.1.17, aes(year, N.dm.adult)) +
+  geom_errorbar(aes(ymin = lci.dm.adult, ymax = uci.dm.adult)) +
+  geom_point() + geom_line() + 
+  xlab("Year") + ylab("Adult Abundance") +
+  geom_point(aes(year, N.glmm.adult), colour = 'red') + geom_line(aes(year, N.glmm.adult), colour = 'red') + 
+  geom_errorbar(aes(x = year+.1, ymin = lci.glmm.adult, ymax = uci.glmm.adult), colour = 'red') +
+  geom_point(aes(year, N.detect.adult), colour = 'blue') + geom_line(aes(year, N.detect.adult), colour = 'blue') + 
+  geom_errorbar(aes(x = year-.1, ymin = lci.detect.adult, ymax = uci.detect.adult), colour = 'blue') +
+  facet_wrap( ~ site) +
+  theme_bw() +
+  theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=14,face="bold"))
+
+sites.1.27 <- data.site.year %>%
+  # mutate(year = as.integer(as.character(fyear))) %>%
+  #group_by(site) %>%
+  filter(site == "Site1" | site == "Site27")
+
+ggplot(sites.1.27, aes(year, N.dm.yoy)) +
+  geom_errorbar(aes(ymin = lci.dm.yoy, ymax = uci.dm.yoy)) +
+  geom_point() + geom_line() + 
+    xlab("Year") + ylab("YOY Abundance") +
+  geom_point(aes(year, N.glmm.yoy), colour = 'red') + geom_line(aes(year, N.glmm.yoy), colour = 'red') + 
+  geom_errorbar(aes(x = year+.1, ymin = lci.glmm.yoy, ymax = uci.glmm.yoy), colour = 'red') +
+  geom_point(aes(year, N.detect.yoy), colour = 'blue') + geom_line(aes(year, N.detect.yoy), colour = 'blue') + 
+  geom_errorbar(aes(x = year-.1, ymin = lci.detect.yoy, ymax = uci.detect.yoy), colour = 'blue') +
+  facet_wrap( ~ site) +
+  theme_bw() + 
+  theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=14,face="bold"))
+
+#### Add raw data to plots ------------
+# Convert wide to long for plotting comparison
+yoy.2 <- data.frame(Dat$y[1:72, 2:15, 1, 2]) # all sites, all years, yoy, pass 1
+adult.2 <- data.frame(Dat$y[1:72, 2:15, 2, 2]) # all sites, all years, adult, pass 1
+
+yoy.2$site <- row.names(yoy.2)
+colnames(yoy.2) <- c(1997:2010, "site")
+yoy2 <- reshape::melt(yoy.2, id = "site")
+colnames(yoy2) <- c("site", "year", "c.yoy2")
+yoy2 <- mutate(yoy2, year = as.integer(as.character(year)))  
+
+adult.2$site <- row.names(adult.2)
+colnames(adult.2) <- c(1997:2010, "site")
+adult2 <- melt(adult.2, id = "site")
+colnames(adult2) <- c("site", "year", "c.adults2")
+adult2 <- mutate(adult2, year = as.integer(as.character(year)))  
+
+
+yoy.3 <- data.frame(Dat$y[1:72, 2:15, 1, 3]) # all sites, all years, yoy, pass 1
+adult.3 <- data.frame(Dat$y[1:72, 2:15, 2, 3]) # all sites, all years, adult, pass 1
+
+yoy.3$site <- row.names(yoy.3)
+colnames(yoy.3) <- c(1997:2010, "site")
+yoy3 <- reshape::melt(yoy.3, id = "site")
+colnames(yoy3) <- c("site", "year", "c.yoy3")
+yoy3 <- mutate(yoy3, year = as.integer(as.character(year)))  
+
+adult.3$site <- row.names(adult.3)
+colnames(adult.3) <- c(1997:2010, "site")
+adult3 <- melt(adult.3, id = "site")
+colnames(adult3) <- c("site", "year", "c.adults3")
+adult3 <- mutate(adult3, year = as.integer(as.character(year)))  
+
+adult1 <- adult
+yoy1 <- yoy
+
+adult1 <- mutate(adult1, year = as.integer(as.character(year)))  
+yoy1 <- mutate(yoy1, year = as.integer(as.character(year))) 
+
+adult1 <- mutate(adult1, site.year = paste0(site, "-", year))
+adult2 <- mutate(adult2, site.year = paste0(site, "-", year))
+adult3 <- mutate(adult3, site.year = paste0(site, "-", year))
+yoy1 <- mutate(yoy1, site.year = paste0(site, "-", year))
+yoy2 <- mutate(yoy2, site.year = paste0(site, "-", year))
+yoy3 <- mutate(yoy3, site.year = paste0(site, "-", year))
+data.site.year <- mutate(data.site.year, site.year = paste0(site, "-", year))
+
+
+
+N.count <- data.site.year %>%
+  left_join(adult1, by = "site.year") %>%
+  left_join(adult2, by = "site.year") %>%
+  left_join(adult3, by = "site.year") %>%
+  left_join(yoy1, by = "site.year") %>%
+  left_join(yoy2, by = "site.year") %>%
+  left_join(yoy3, by = "site.year")
+
+
+N.count.site <- filter(N.count, filter = site.x == "Site2")
+
+p1 <- ggplot(N.count.site, aes(year,c.yoy), ) +
+  geom_point(shape = "1", size = 3) +
+    xlab("Year") + ylab("YOY Abundance") +
+  ylim(c(0, max(N.count.site$uci.dm.yoy))) +
+    theme_bw() + 
+  theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=14,face="bold"))
+p1
+
+p2 <- p1 + geom_point(aes(year, c.yoy + c.yoy2), shape = "2", size = 3)
+p2
+
+p3 <- p2 + geom_point(aes(year, c.yoy + c.yoy2 + c.yoy3), shape = "3", size = 3)
+p3
+
+p3.detect <- p3 + geom_point(aes(year, N.detect.yoy), colour = 'blue') + geom_line(aes(year, N.detect.yoy), colour = 'blue') + 
+  geom_errorbar(aes(x = year-.1, ymin = lci.detect.yoy, ymax = uci.detect.yoy), colour = 'blue')
+p3.detect
+
+p3.detect.dm <- p3.detect + geom_point(aes(year, N.dm.yoy)) + geom_line(aes(year, N.dm.yoy)) +
+    geom_errorbar(aes(ymin = lci.dm.yoy, ymax = uci.dm.yoy))
+p3.detect.dm
+
+
+
+
+
+
+
+
+
+N.count.site1 <- filter(N.count, filter = site.x == "Site1")
+ggplot(N.count.site1, aes(year, N.detect.yoy)) +
+  geom_errorbar(aes(ymin = lci.detect.yoy, ymax = uci.detect.yoy)) +
+  geom_point() + geom_line() + 
+  geom_point(aes(year, N.glmm.yoy), colour = 'red') + geom_line(aes(year, N.glmm.yoy), colour = 'red') + 
+  geom_errorbar(aes(x = year+.1, ymin = lci.glmm.yoy, ymax = uci.glmm.yoy), colour = 'red') +
+  geom_point(aes(year, c.yoy), colour = 'blue') + #geom_line(year. c.yoy) + 
+  facet_wrap( ~ site) +
+  theme_bw()
+
+
+
+
+
 adult.n <- as.data.frame(exp(predict(adult.detect.1))) # missing predictions due to NA in data?
 colnames(adult.n) <- c("N")
 adult.n$trip <- paste("trip", row.names(adult.n), sep = "")
@@ -327,4 +568,16 @@ agg.yoy <- aggregate(yoy.n, by = list(yoy.n$year), FUN = mean, na.rm = TRUE)
 agg.yoy$N.pop <- agg.yoy$N * 72
 ```
 
+
+
+```{r compare coefficients}
+
+##### how to compare coefficients since DM in terms of survival and recruitment?????
+
+coef(adult.detect.1)
+fixef(adult.glmm.p)
+
+summary(adult.detect.1)
+summary(adult.glmm.p)
+```
 

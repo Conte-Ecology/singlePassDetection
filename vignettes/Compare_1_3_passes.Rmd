@@ -75,3 +75,56 @@ summary(lm(yoy.dm$N.pop ~ agg.yoy$N.pop))
 
 ```
 
+
+```{r importance of imperfect detection}
+
+abund <- rpois(10, 20)
+year <- 1:10
+count1 <- abund * 0.5
+count2 <- rbinom(10, abund, 0.5)
+flow <- rnorm(10) * (year - mean(year))/sd(year)
+p <- 0.5 - flow * 0.18
+count3 <- NA
+for(i in 1:length(year)) { # effects of random flow when surveyed in different years
+  count3[i] <- rbinom(1, abund, p[i])
+}
+
+df <- data.frame(year, abund, count1, count2)
+
+gp1 <- ggplot(df, aes(year, abund)) +
+  geom_point(size = 3) + geom_line(size = 1) +
+  xlab("Year") + ylab("Abundance") +
+  ylim(c(0, 30)) + 
+  theme_bw() + 
+  theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=14,face="bold"))
+gp1
+
+gp2 <- gp1 + geom_point(aes(year, count1), colour = "blue", size = 3) +
+  geom_line(aes(year, count1), colour = "blue", size = 1)
+gp2
+
+gp3 <- gp2 + geom_point(aes(year, count2), colour = "red", size = 3) +
+  geom_line(aes(year, count2), colour = "red", size = 1)
+gp3
+
+gp4 <- gp2 + geom_point(aes(year, count3), colour = "red", size = 3) +
+  geom_line(aes(year, count3), colour = "red", size = 1, linetype = 2)
+gp4
+
+```
+
+```{r coefficients}
+
+coef(adult.detect.1)
+fixef(adult.glmm.p)
+
+summary(adult.detect.1)
+summary(yoy.detect.1)
+summary(adult.glmm.p)
+
+recruit.coefs
+survival.coefs.adult
+survival.coefs.yoy
+detect.coefs
+
